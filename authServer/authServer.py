@@ -101,12 +101,12 @@ class AuthServer(object):
 
 
 def main():
-    Pyro4.config.HOST = "peddis-MacBook-Air.local"
     Pyro4.Daemon.serveSimple(
             {
                 AuthServer: "example.authServer"
             },
             ns = True,
+            host = "192.168.0.33",
             port = 9000) 
 
 

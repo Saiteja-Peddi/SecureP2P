@@ -6,30 +6,15 @@ import getpass
 import Pyro4
 import Pyro4.util
 
-
-dbAddress = "localhost"
-dbPort = 9000
-authAddress = 'localhost'
-authPort = 9000
 cwd = "./db"
 
 
 sys.excepthook = Pyro4.util.excepthook
 
-def socketConnection():
-    #AF_INET represents which family address type belongs to.
-    cliSock = socket(AF_INET, SOCK_STREAM)
-    return cliSock 
 
-def callAuthServer(clientRequest):
-    #Client creating api request to server
-    print ("Calling Server")
-    cliSoc = socketConnection()
-    cliSoc.connect((authAddress,authPort))
-    cliSoc.send(clientRequest.encode())
-    serverResponse = cliSoc.recv(1024)
-    serverResponse = serverResponse.decode()
-    cliSoc.close()
+def callAuthServer(authServer, clientRequest):
+    
+    serverResponse = authServer.authRequestHandler(clientRequest)
     if serverResponse.split("|")[0] == "1":
         print(serverResponse.split("|")[1])
         return True
@@ -54,19 +39,14 @@ def createUser(authServer, userId):
     hashedPassword = hash(password.encode())
     clientRequest = "CREATE_USER|"+userId+"|"+str(hashedPassword)
 
-    return authServer.authRequestHandler(clientRequest)
-
-    # return callAuthServer(clientRequest)
+    return callAuthServer(authServer, clientRequest)
 
 
 def authenticateUser(authServer, userId):
     password = getpass.getpass("Enter your password:\n")
     hashedPassword = hash(password.encode())
     clientRequest = "LOGIN_USER|"+userId+"|"+str(hashedPassword)
-    
-
-    return authServer.authRequestHandler(clientRequest)
-    # return callAuthServer(clientRequest)
+    return callAuthServer(authServer, clientRequest)
 
 
 def provideLoginOptions():

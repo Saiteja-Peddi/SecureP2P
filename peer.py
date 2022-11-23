@@ -154,12 +154,12 @@ class Peer(object):
     
 
 def main():
-    Pyro4.config.HOST = "peddis-MacBook-Air.local"
     Pyro4.Daemon.serveSimple(
             {
                 Peer: "example.peer"
             },
             ns = True,
+            host = "192.168.0.33",
             port = 9001) 
 
 
