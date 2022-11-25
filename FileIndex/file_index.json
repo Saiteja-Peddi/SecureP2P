@@ -1,0 +1,17 @@
+{
+    "fileInd":[
+        {
+            "id":"",
+            "peer":"",
+            "fileCount":0,
+            "index":[
+                {
+                    "fileNameHash":"",
+                    "timeStamp":"",
+                    "fileContentHash":"",
+                    "fileLock":""
+                }
+            ]
+        }
+    ]
+}

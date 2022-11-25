@@ -2,13 +2,7 @@ from socket import *
 import json
 import rsa
 import Pyro4
-
-authAddress = 'localhost'
-authPort = 9000
-dbSoc = socket(AF_INET, SOCK_STREAM)
-dbSoc.bind((authAddress, authPort))
-dbSoc.listen()
-
+from .. import constants
 
 def writeToUserListFile(userId, hashedPassword):
         with open('user_list.json','r+') as file:
@@ -106,8 +100,8 @@ def main():
                 AuthServer: "example.authServer"
             },
             ns = True,
-            host = "192.168.0.33",
-            port = 9000) 
+            host = constants.pyroHost,
+            port = constants.authServerPort) 
 
 
 if __name__ == "__main__":

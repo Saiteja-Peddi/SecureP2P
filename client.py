@@ -5,9 +5,9 @@ import fileOperationsCli as fileCli
 import getpass
 import Pyro4
 import Pyro4.util
-
+import constants
 cwd = "./db"
-
+dbDir = "./db/"
 
 sys.excepthook = Pyro4.util.excepthook
 
@@ -61,14 +61,12 @@ def provideFileOperationsMenu():
     menu ="""
     Command Menu:
     1. Create a file: create|<filename>|<permissions>
-        Permission: r = read, rw = read & write, p = private
+        Permission: r = read, p = private
         Supports only .txt file
     2. Read a file: read|<filename>
     3. Write to a file: write|<filename>
     4. Delete a file: rmfile|<filename>
     5. Restore a file: restore|<filename>
-    6. Create a Directory: crdir|<directoryname>
-    7. Delete a Directory: rmdir|<directoryname>
     8. Go inside a directory: goindir|<directoryname> 
         To go back enter ".." in <directoryname>
     9. List root files: lsroot
@@ -124,34 +122,26 @@ def main():
     
     provideFileOperationsMenu()
 
-    peer = Pyro4.Proxy("PYRONAME:example.peer")
-
     while 1:
         cliCommand = sys.stdin.readline()
         if "create" in cliCommand and checkCommandInput(cliCommand,True):
             _,fileName,permissions = cliCommand.split("|")
-            fileCli.createFile(peer, fileName, cwd, permissions, userId)
+            fileCli.createFile(dbDir+fileName.strip("\n"), permissions.strip("\n"), userId.strip("\n"))
 
         elif "read" in cliCommand and checkCommandInput(cliCommand,False):
             _,fileName = cliCommand.split("|")
-            fileCli.readFile(peer, fileName, cwd, userId)
+            fileCli.readFile(dbDir+fileName.strip("\n"), userId.strip("\n"))
 
         elif "write" in cliCommand and checkCommandInput(cliCommand,False):
             _,fileName = cliCommand.split("|")
-            fileCli.writeFile(peer, fileName, cwd, userId)
+            fileCli.writeFile(dbDir+fileName.strip("\n"), userId.strip("\n"))
 
         elif "rmfile" in cliCommand and checkCommandInput(cliCommand,False):
             _,fileName = cliCommand.split("|")
-            fileCli.deleteFile(peer, fileName, cwd, userId)
+            fileCli.deleteFile(fileName.strip("\n"), cwd, userId.strip("\n"))
 
             # Below link contains how to delete an element from a json file
             # https://stackoverflow.com/questions/71764921/how-to-delete-an-element-in-a-json-file-python
-        
-        elif "rmdir" in cliCommand and checkCommandInput(cliCommand,False):
-            print("Delete directory functionality")
-
-        elif "crdir" in cliCommand and checkCommandInput(cliCommand,False):
-            print("Create directory functionality")
 
         elif "goindir" in cliCommand and checkCommandInput(cliCommand,False):
             print("Go inside a directory functionality")

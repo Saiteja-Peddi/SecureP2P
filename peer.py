@@ -3,36 +3,89 @@ import json
 import rsa
 import os
 import shutil
+import constants
+import uuid
+import datetime
+
+peerName = "example.peer"
+
+
+
+
+def loadFileIndexServer():
+    fileIndexServer = Pyro4.Proxy("PYRONAME:example.fileIndex")
+    fileCount = 0
+    index = []
+    with open('file_perm.json','r+') as file:
+        file_data = json.load(file)
+        for ind,fil in enumerate(file_data["fileList"]):
+            index.append(
+                {
+                    "fileNameHash":fil.fileNameHash,
+                    "fileUid":fil.fileUid,
+                    "timeStamp":fil.timeStamp,
+                    "fileContentHash":fil.fileContentHash,
+                    "fileLock":False
+                }
+            )
+
+        fileCount = len(file_data["fileList"])
+        file.seek(0)
+        json.dump(file_data, file, indent = 4)
+
+    indexServerPayload = {
+        "peerUri" :peerName,
+        "fileCount":fileCount,
+        "index":index,
+    }
+
+    response = fileIndexServer.loadPeerFileIndex(indexServerPayload)
+    print(response.split("|")[1])
 
 
 
 
 
 
-def writeToFilePermJson(userId, fileName, path, permissions, userList):
+def writeToFilePermJson(userId, fileName, permissions, userList, fileNameHash, fileContentHash, uid, timeStamp):
     with open('file_perm.json','r+') as file:
         file_data = json.load(file)
 
         fileMeta = {
             "fileName":fileName,
+            "fileNameHash":fileNameHash,
+            "fileContentHash":fileContentHash,
+            "timeStamp":datetime.datetime.strptime(timeStamp, '%b %d %Y %I:%M:%S%p'),
             "permission":permissions.strip("\n"),
             "createdBy":userId,
             "userList":userList.split(","),
-            "path":path
         }
 
         file_data['fileList'].append(fileMeta)
         file.seek(0)
         json.dump(file_data, file, indent = 4)
 
-
-def verifyUserPermissions(userId, fileName, path, checkWrite, checkRead, checkDelete):
+def updateFilePermJson(fileName, fileContentHash, timeStamp):
     with open('file_perm.json','r+') as file:
         file_data = json.load(file)
         for ind,fil in enumerate(file_data["fileList"]):
-            if fileName in fil["fileName"] and path in fil["path"]:
+            if fileName in fil["fileName"]:
+                file_data["fileList"][ind]["timeStamp"] = datetime.datetime.strptime(timeStamp, '%b %d %Y %I:%M:%S%p')
+                file_data["fileList"][ind]["fileContentHash"] = fileContentHash
+
+
+        file.seek(0)
+        json.dump(file_data, file, indent = 4)
+
+
+
+def verifyUserPermissions(userId, fileName, checkWrite, checkRead, checkDelete):
+    with open('file_perm.json','r+') as file:
+        file_data = json.load(file)
+        for ind,fil in enumerate(file_data["fileList"]):
+            if fileName in fil["fileName"]:
                 if checkWrite:
-                    if userId in fil["createdBy"] or (userId in fil["userList"] and "rw" in fil["permission"]):
+                    if userId in fil["createdBy"]:
                         return True
                     else:
                         return False
@@ -49,24 +102,26 @@ def verifyUserPermissions(userId, fileName, path, checkWrite, checkRead, checkDe
                 else:
                     return False
 
-def createFile(userId, fileName, path, permissions, userList):
+def createFile(userId, fileName, permissions, userList, uid, timeStamp):
 
-    if os.path.isfile(path+"/"+fileName):
+    if os.path.isfile(fileName):
         return "0|File already exists"
     else:
-        writeToFilePermJson(userId, fileName, path, permissions, userList)
-        file = open(path+"/"+fileName, "w")
+        writeToFilePermJson(userId, fileName, permissions, userList, str(hash(fileName)), "", uid, timeStamp)
+        os.makedirs(os.path.dirname(fileName), exist_ok=True)
+        file = open(fileName, "w")
         file.write("Please enter file content")
         file.close()
         return "1|File created successfully"
 
 
-def writeFile(userId, fileName, path, fileContent):
+def writeFile(userId, fileName, fileContent, fileContentHash, timeStamp):
 
-    if verifyUserPermissions(userId,fileName,path,True,False,False):
-        file = open(path+"/"+fileName, "w")
+    if verifyUserPermissions(userId,fileName,True,False,False):
+        file = open(fileName, "w")
         file.write(fileContent)
         file.close()
+        updateFilePermJson(fileName, fileContentHash, timeStamp)
         return "1|File write successfull"
     
     else:
@@ -110,18 +165,19 @@ class Peer(object):
 
 
     def __init__(self):
+        loadFileIndexServer()
         pass
 
 
     def fileRequestHandler(self, cliMsg):
 
         if "CREATE_FILE" in cliMsg:
-            _,userId, fileName, path, permissions, userList = cliMsg.split("|")
-            message = createFile(userId.strip("\n"), fileName.strip("\n"), path.strip("\n"), permissions.strip("\n"), userList)
+            _,userId, fileName, permissions, userList, uid, timeStamp = cliMsg.split("|")
+            message = createFile(userId.strip("\n"), fileName.strip("\n"), permissions.strip("\n"), userList, uid, timeStamp)
 
         elif "WRITE_FILE" in cliMsg:
-            _,userId, fileName, path, fileContent = cliMsg.split("|")
-            message = writeFile(userId.strip("\n"), fileName.strip("\n"), path.strip("\n"), fileContent)
+            _,userId, fileName, path, fileContent, fileContentHash, timeStamp = cliMsg.split("|")
+            message = writeFile(userId.strip("\n"), fileName.strip("\n"), path.strip("\n"), fileContent, fileContentHash, timeStamp)
 
         elif "READ_FILE" in cliMsg:
             _,userId, fileName, path = cliMsg.split("|")
@@ -156,11 +212,11 @@ class Peer(object):
 def main():
     Pyro4.Daemon.serveSimple(
             {
-                Peer: "example.peer"
+                Peer: peerName
             },
             ns = True,
-            host = "192.168.0.33",
-            port = 9001) 
+            host = constants.pyroHost,
+            port = constants.peerPort) 
 
 
 
