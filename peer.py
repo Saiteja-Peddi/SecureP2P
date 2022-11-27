@@ -7,7 +7,7 @@ import constants
 import uuid
 import datetime
 
-peerName = "example.peer"
+peerName = constants.peerName
 
 
 
@@ -22,16 +22,17 @@ def loadFileIndexServer():
             index.append(
                 {
                     "fileNameHash":fil.fileNameHash,
-                    "fileUid":fil.fileUid,
                     "timeStamp":fil.timeStamp,
                     "fileContentHash":fil.fileContentHash,
-                    "fileLock":False
+                    "fileLock":False,
+                    "fileDelete": False
                 }
             )
 
         fileCount = len(file_data["fileList"])
         file.seek(0)
         json.dump(file_data, file, indent = 4)
+        file.close()
 
     indexServerPayload = {
         "peerUri" :peerName,
@@ -42,12 +43,22 @@ def loadFileIndexServer():
     response = fileIndexServer.loadPeerFileIndex(indexServerPayload)
     print(response.split("|")[1])
 
+def addToFileIndex(file):
+    fileIndexServer = Pyro4.Proxy("PYRONAME:example.fileIndex")
+    indexServerPayload = {
+        "peerUri" :peerName,
+        "fileNameHash":file["fileNameHash"],
+        "fileContentHash":file["fileContentHash"],
+        "timeStamp":file["timeStamp"],
+        "fileLock": False,
+    }
+
+    response = fileIndexServer.addToFileIndexJson(indexServerPayload)
+    print(response.split("|")[1])
 
 
 
-
-
-def writeToFilePermJson(userId, fileName, permissions, userList, fileNameHash, fileContentHash, uid, timeStamp):
+def writeToFilePermJson(userId, fileName, permissions, userList, fileNameHash, fileContentHash, timeStamp):
     with open('file_perm.json','r+') as file:
         file_data = json.load(file)
 
@@ -61,9 +72,11 @@ def writeToFilePermJson(userId, fileName, permissions, userList, fileNameHash, f
             "userList":userList.split(","),
         }
 
+        addToFileIndex(fileMeta)
         file_data['fileList'].append(fileMeta)
         file.seek(0)
         json.dump(file_data, file, indent = 4)
+        file.close()
 
 def updateFilePermJson(fileName, fileContentHash, timeStamp):
     with open('file_perm.json','r+') as file:
@@ -76,6 +89,7 @@ def updateFilePermJson(fileName, fileContentHash, timeStamp):
 
         file.seek(0)
         json.dump(file_data, file, indent = 4)
+        file.close()
 
 
 
@@ -102,12 +116,14 @@ def verifyUserPermissions(userId, fileName, checkWrite, checkRead, checkDelete):
                 else:
                     return False
 
-def createFile(userId, fileName, permissions, userList, uid, timeStamp):
+        file.close()
+
+def createFile(userId, fileName, permissions, userList, timeStamp):
 
     if os.path.isfile(fileName):
         return "0|File already exists"
     else:
-        writeToFilePermJson(userId, fileName, permissions, userList, str(hash(fileName)), "", uid, timeStamp)
+        writeToFilePermJson(userId, fileName, permissions, userList, str(hash(fileName)), "", timeStamp)
         os.makedirs(os.path.dirname(fileName), exist_ok=True)
         file = open(fileName, "w")
         file.write("Please enter file content")
@@ -127,10 +143,10 @@ def writeFile(userId, fileName, fileContent, fileContentHash, timeStamp):
     else:
         return "0|Access denied"
 
-def readFile(userId, fileName, path):
+def readFile(userId, fileName):
 
-    if verifyUserPermissions(userId,fileName,path,False,True,False):
-        file = open(path+"/"+fileName, "r")
+    if verifyUserPermissions(userId,fileName,False,True,False):
+        file = open(fileName, "r")
         fileContent = ""
         for line in file.readlines():
             fileContent+=line+"\n"
@@ -140,21 +156,25 @@ def readFile(userId, fileName, path):
     else:
         return "0|Access denied"
 
-def deleteFile(userId, fileName, path):
+def deleteFile(userId, fileName):
 
-    if verifyUserPermissions(userId,fileName,path,False,False,True):
-        source = path + "/" + fileName
+    if verifyUserPermissions(userId,fileName,False,False,True):
+        source = fileName
         destination = "./db/backup/"+fileName
         with open('file_perm.json', "r") as f:
             file_data = json.load(f)
             for ind,fil in enumerate(file_data["fileList"]):
-                if fileName in fil["fileName"] and path in fil["path"]:
+                if fileName in fil["fileName"]:
                     file_data["fileList"].pop(ind)
-        
+        f.close()
         with open('file_perm.json', "w") as f:
             json.dump(file_data,f)
+        f.close()
+
+        fileIndexServer = Pyro4.Proxy("PYRONAME:example.fileIndex")
         shutil.move(source, destination)
-        return "1|File deleted successfully"
+        msg = fileIndexServer.updateFileDeleteInIndex(peerName, str(hash(fileName)))
+        return msg
     
     else:
         return "0|Access denied"
@@ -172,20 +192,20 @@ class Peer(object):
     def fileRequestHandler(self, cliMsg):
 
         if "CREATE_FILE" in cliMsg:
-            _,userId, fileName, permissions, userList, uid, timeStamp = cliMsg.split("|")
-            message = createFile(userId.strip("\n"), fileName.strip("\n"), permissions.strip("\n"), userList, uid, timeStamp)
+            _,userId, fileName, permissions, userList, timeStamp = cliMsg.split("|")
+            message = createFile(userId.strip("\n"), fileName.strip("\n"), permissions.strip("\n"), userList, timeStamp)
 
         elif "WRITE_FILE" in cliMsg:
-            _,userId, fileName, path, fileContent, fileContentHash, timeStamp = cliMsg.split("|")
+            _,userId, fileName, fileContent, fileContentHash, timeStamp = cliMsg.split("|")
             message = writeFile(userId.strip("\n"), fileName.strip("\n"), path.strip("\n"), fileContent, fileContentHash, timeStamp)
 
         elif "READ_FILE" in cliMsg:
-            _,userId, fileName, path = cliMsg.split("|")
-            message = readFile(userId.strip("\n"), fileName.strip("\n"), path.strip("\n"))
+            _,userId, fileName = cliMsg.split("|")
+            message = readFile(userId, fileName)
 
         elif "DELETE_FILE" in cliMsg:
-            _,userId, fileName, path = cliMsg.split("|")
-            message = deleteFile(userId.strip("\n"), fileName.strip("\n"), path.strip("\n"))
+            _,userId, fileName = cliMsg.split("|")
+            message = deleteFile(userId, fileName)
         
         elif "RESTORE_FILE" in cliMsg:
             print("Restore a file")

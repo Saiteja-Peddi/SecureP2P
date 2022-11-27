@@ -9,7 +9,8 @@
                     "fileNameHash":"",
                     "timeStamp":"",
                     "fileContentHash":"",
-                    "fileLock":""
+                    "fileLock":"",
+                    "fileDeleteFlag":""
                 }
             ]
         }

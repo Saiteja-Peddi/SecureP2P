@@ -68,7 +68,17 @@ def createFile(fileName, permissions, userId):
                 i += 1
             print("-------------------------------------------------------\n")
 
-        clientRequest = "CREATE_FILE"+"|"+userId+"|"+fileName+"|"+permissions+"|"+userList.strip("\n")+"|"+uuid.uuid4()+"|"+str(datetime.datetime.now())
+        clientRequest = "CREATE_FILE"+"|"+userId+"|"+fileName+"|"+permissions+"|"+userList.strip("\n")+"|"+str(datetime.datetime.now())
+        
+        while True:
+            print(createMsg)
+            opt = int(input())
+            if opt == 1 or opt == 2:
+                break
+            else:
+                print("Invalid option selected")
+
+        
         if opt == 2:
             peer = fileIndexServer.getAvailablePeerURI(constants.peerName)
             if peer.split("|")[0] == "0":
@@ -76,7 +86,8 @@ def createFile(fileName, permissions, userId):
             else:
                 callPeer(peer, clientRequest)
         return callPeer(constants.peerName, clientRequest)
-                
+        
+
 
         
 
@@ -98,8 +109,8 @@ def writeFile(fileName, userId):
 
     print("-------------------------------------------------------\n")
 
-
-    clientRequest = "WRITE_FILE"+"|"+userId+"|"+fileName+"|"+fileText+"|"+str(hash(fileText))+"|"+str(datetime.datetime.now())
+    curr_time = str(datetime.datetime.now())
+    clientRequest = "WRITE_FILE"+"|"+userId+"|"+fileName+"|"+fileText+"|"+str(hash(fileText))+"|"+ curr_time
     peer = fileIndexServer.lockAndGetPeerURI(str(hash(fileName)))
     if peer.split("|")[0] == "0":
         print(peer.split("|")[1])
@@ -107,7 +118,7 @@ def writeFile(fileName, userId):
         for i,peer in enumerate(peer.strip("|")):
             if i !=0:
                 callPeer(peer, clientRequest)
-    fileIndexServer.unlockFileWrite(str(hash(fileName)), str(hash(fileText)), str(datetime.datetime.now()))
+    fileIndexServer.unlockFileWrite(str(hash(fileName)), str(hash(fileText)), curr_time)
 
 
 def readFile(fileName, userId):
@@ -118,6 +129,30 @@ def readFile(fileName, userId):
     else:
         callPeer(peer, clientRequest)
 
-def deleteFile(fileName, path, userId):
-    clientRequest = "DELETE_FILE"+"|"+userId+"|"+fileName+"|"+path
-    return callPeer(constants.peerName, clientRequest)
+def deleteFile(fileName, userId):
+
+    deleteMsg = """
+    Enter
+    1 -> Delete locally
+    2 -> Delete everywhere
+    Note: If you delete everywhere you won't be able to restore the file
+    """
+    print(deleteMsg)
+
+    while True:
+        print(deleteMsg)
+        opt = int(input())
+        if opt == 1 or opt == 2:
+            break
+        else:
+            print("Invalid option selected")
+
+
+    clientRequest = "DELETE_FILE"+"|"+userId+"|"+fileName
+    peer = fileIndexServer.getPeerURIForDelete(str(hash(fileName)))
+    if opt == 2:
+        for i,peer in enumerate(peer.strip("|")):
+            if i !=0:
+                callPeer(peer, clientRequest)
+    else:
+        return callPeer(constants.peerName, clientRequest)

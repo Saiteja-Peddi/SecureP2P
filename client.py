@@ -138,7 +138,7 @@ def main():
 
         elif "rmfile" in cliCommand and checkCommandInput(cliCommand,False):
             _,fileName = cliCommand.split("|")
-            fileCli.deleteFile(fileName.strip("\n"), cwd, userId.strip("\n"))
+            fileCli.deleteFile(dbDir+fileName.strip("\n"), userId.strip("\n"))
 
             # Below link contains how to delete an element from a json file
             # https://stackoverflow.com/questions/71764921/how-to-delete-an-element-in-a-json-file-python

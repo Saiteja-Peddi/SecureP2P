@@ -18,6 +18,7 @@ def updateFileIndexJson(fileNameHash, fileContentHash, timeStamp):
 
         file.seek(0)
         json.dump(file_data, file, indent = 2)
+        file.close()
 
 def writeToFileIndexJson(jsonObject):
     with open('file_index.json','r+') as file:
@@ -32,6 +33,7 @@ def writeToFileIndexJson(jsonObject):
         file_data['fileInd'].append(fileIndex)
         file.seek(0)
         json.dump(file_data, file, indent = 2)
+        file.close()
     return "1|Successfully updated file index"
 
 def emptyFileIndexJson():
@@ -40,6 +42,31 @@ def emptyFileIndexJson():
         file_data['fileInd'] = []
         file.seek(0)
         json.dump(file_data, file, indent = 2)
+        file.close()
+
+def addToFileIndex(fileObj):
+    with open('file_index.json','r+') as file:
+        file_data = json.load(file)
+
+        indexObj = {
+            "fileNameHash":fileObj["fileNameHash"],
+            "timeStamp":fileObj["timeStamp"],
+            "fileContentHash":fileObj["fileContentHash"],
+            "fileLock":fileObj["fileLock"],
+            "fileDeleteFlag": False
+        }
+
+        for ind,peerContent in enumerate(file_data["fileInd"]):
+            if peerContent["peer"] == fileObj["peerUri"]:
+                file_data["fileInd"][ind]["fileCount"] = peerContent["fileCount"] + 1
+                file_data["fileInd"][ind]["index"].append(indexObj)
+        
+        file.seek(0)
+        json.dump(file_data, file, indent = 2)
+        file.close()
+    return "1|Successfully updated file index"
+
+
 
 def verifyFileAvailability(fileNameHash):
     with open('file_index.json','r+') as file:
@@ -85,10 +112,27 @@ def getPeerURI(requestedURI, writeMethodFlag, fileNameHash):
         
         file.seek(0)
         json.dump(file_data, file, indent = 2)
+        file.close()
     if uri == "":
         return "0|Unable to find a peer"
     else:
         return uri
+
+def updateDeleteFlag(requestedURI, fileNameHash):
+    msg = "0|Error: Unable to update file delete"
+    with open('file_index.json','r+') as file:
+        file_data = json.load(file)
+        for ind,peerContent in enumerate(file_data["fileInd"]):
+            for j,fil in enumerate(peerContent["index"]):
+                if fileNameHash in fil["fileNameHash"] and peerContent["peer"] in requestedURI:
+                    file_data["fileInd"][ind]["index"][j]["fileDeleteFlag"] = True
+                    msg = "1|File delete successful"
+
+        file.seek(0)
+        json.dump(file_data, file, indent = 2)
+        file.close()
+    return msg
+    
 
 def getReadPeerURI(fileNameHash):
     uri = ""
@@ -98,7 +142,7 @@ def getReadPeerURI(fileNameHash):
 
         for ind,peerContent in enumerate(file_data["fileInd"]):
             for j,fil in enumerate(peerContent["index"]):
-                if fil["fileNameHash"] == fileNameHash and tempTimeStamp == "":
+                if fil["fileNameHash"] == fileNameHash:
                     if tempTimeStamp - datetime.datetime.strptime(fil["timeStamp"], '%b %d %Y %I:%M:%S%p') < 0:
                         uri = peerContent["peer"]
                         tempTimeStamp = datetime.datetime.strptime(fil["timeStamp"], '%b %d %Y %I:%M:%S%p')
@@ -106,6 +150,7 @@ def getReadPeerURI(fileNameHash):
         
         file.seek(0)
         json.dump(file_data, file, indent = 2)
+        file.close()
     if uri == "":
         return "0|Unable to find a peer"
     else:
@@ -120,6 +165,9 @@ class FileIndex(object):
 
     def loadPeerFileIndex(jsonObject):
         return writeToFileIndexJson(jsonObject)
+
+    def addToFileIndexJson(requestObj):
+        return addToFileIndex(requestObj)
 
     def checkFileAvailability(fileNameHash):
         return verifyFileAvailability(fileNameHash)
@@ -138,6 +186,11 @@ class FileIndex(object):
         updateFileIndexJson(fileNameHash, fileContentHash, timeStamp)
         lockUnlockFileWrite(fileNameHash, False)
 
+    def getPeerURIForDelete(fileNameHash):
+        return getPeerURI("", True, fileNameHash)
+
+    def updateFileDeleteInIndex(requestedURI, fileNameHash):
+        return updateDeleteFlag(requestedURI, fileNameHash)
 
         
 
