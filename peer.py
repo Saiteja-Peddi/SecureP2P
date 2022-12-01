@@ -10,32 +10,38 @@ import datetime
 peerName = constants.peerName
 
 
-
+#To start name server enter below command in the shell
+# python -m Pyro4.naming -n <your_hostname>
 
 def loadFileIndexServer():
+    print("Loading file index server")
     fileIndexServer = Pyro4.Proxy("PYRONAME:example.fileIndex")
+
     fileCount = 0
     index = []
     with open('file_perm.json','r+') as file:
         file_data = json.load(file)
-        for ind,fil in enumerate(file_data["fileList"]):
-            index.append(
-                {
-                    "fileNameHash":fil.fileNameHash,
-                    "timeStamp":fil.timeStamp,
-                    "fileContentHash":fil.fileContentHash,
-                    "fileLock":False,
-                    "fileDelete": False
-                }
-            )
-
         fileCount = len(file_data["fileList"])
+        if fileCount == 0:
+            index = []
+        else:
+            for ind,fil in enumerate(file_data["fileList"]):
+                index.append(
+                    {
+                        "fileNameHash":fil["fileNameHash"],
+                        "timeStamp":fil["timeStamp"],
+                        "fileContentHash":fil["fileContentHash"],
+                        "fileLock":False,
+                        "fileDelete": False
+                    }
+                )
+
         file.seek(0)
         json.dump(file_data, file, indent = 4)
         file.close()
 
     indexServerPayload = {
-        "peerUri" :peerName,
+        "peerUri" : peerName,
         "fileCount":fileCount,
         "index":index,
     }
@@ -66,7 +72,7 @@ def writeToFilePermJson(userId, fileName, permissions, userList, fileNameHash, f
             "fileName":fileName,
             "fileNameHash":fileNameHash,
             "fileContentHash":fileContentHash,
-            "timeStamp":datetime.datetime.strptime(timeStamp, '%b %d %Y %I:%M:%S%p'),
+            "timeStamp":timeStamp,
             "permission":permissions.strip("\n"),
             "createdBy":userId,
             "userList":userList.split(","),
@@ -83,7 +89,7 @@ def updateFilePermJson(fileName, fileContentHash, timeStamp):
         file_data = json.load(file)
         for ind,fil in enumerate(file_data["fileList"]):
             if fileName in fil["fileName"]:
-                file_data["fileList"][ind]["timeStamp"] = datetime.datetime.strptime(timeStamp, '%b %d %Y %I:%M:%S%p')
+                file_data["fileList"][ind]["timeStamp"] = datetime.datetime.strptime(timeStamp, '%b %d %Y %I:%M:%S.%f')
                 file_data["fileList"][ind]["fileContentHash"] = fileContentHash
 
 
@@ -182,12 +188,10 @@ def deleteFile(userId, fileName):
 
 @Pyro4.expose
 class Peer(object):
-
+    loadFileIndexServer()
 
     def __init__(self):
-        loadFileIndexServer()
         pass
-
 
     def fileRequestHandler(self, cliMsg):
 
@@ -197,7 +201,7 @@ class Peer(object):
 
         elif "WRITE_FILE" in cliMsg:
             _,userId, fileName, fileContent, fileContentHash, timeStamp = cliMsg.split("|")
-            message = writeFile(userId.strip("\n"), fileName.strip("\n"), path.strip("\n"), fileContent, fileContentHash, timeStamp)
+            message = writeFile(userId.strip("\n"), fileName.strip("\n"), fileContent, fileContentHash, timeStamp)
 
         elif "READ_FILE" in cliMsg:
             _,userId, fileName = cliMsg.split("|")

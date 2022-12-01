@@ -5,10 +5,11 @@ import uuid
 import Pyro4
 import constants
 
-fileIndexServer = Pyro4.Proxy("PYRONAME:example.fileIndex")
+# fileIndexServer = Pyro4.Proxy("PYRONAME:example.fileIndex")
 localPeer = Pyro4.Proxy("PYRONAME:"+constants.peerName)
 
 def callFileIndexServer(indexServerRequest):
+    fileIndexServer = Pyro4.Proxy("PYRONAME:example.fileIndex")
     indexServerResponse = fileIndexServer.checkFileAvailability(indexServerRequest)
     if indexServerResponse.split("|")[0] == "1":
         print(indexServerResponse.split("|")[1])
@@ -30,7 +31,12 @@ def callPeer(peer, clientRequest):
         return False
 
 def verifyFileAvailability(fileNameHash):
-    indexServerResponse = fileIndexServer.checkFileAvailability(fileNameHash)
+    fileIndexServer = Pyro4.Proxy("PYRONAME:example.fileIndex")
+    jsonObject = {
+        "fileNameHash": fileNameHash
+    }
+    indexServerResponse = fileIndexServer.checkFileAvailability(jsonObject)
+    print(indexServerResponse)
     if indexServerResponse.split("|")[0] == "1":
         print(indexServerResponse.split("|")[1])
         return True
@@ -39,6 +45,7 @@ def verifyFileAvailability(fileNameHash):
         return False
 
 def createFile(fileName, permissions, userId):
+    fileIndexServer = Pyro4.Proxy("PYRONAME:example.fileIndex")
     i = 0
     userList = ""
     createMsg = """
@@ -46,9 +53,6 @@ def createFile(fileName, permissions, userId):
     1 -> Create Locally
     2 -> Create Locally and a Peer
     """
-    print(createMsg)
-    opt = int(input())
-
     if verifyFileAvailability(str(hash(fileName))):
         if "p" not in permissions:
             print("Please enter userlist who has access to this file\n")
@@ -69,7 +73,6 @@ def createFile(fileName, permissions, userId):
             print("-------------------------------------------------------\n")
 
         clientRequest = "CREATE_FILE"+"|"+userId+"|"+fileName+"|"+permissions+"|"+userList.strip("\n")+"|"+str(datetime.datetime.now())
-        
         while True:
             print(createMsg)
             opt = int(input())
@@ -94,7 +97,7 @@ def createFile(fileName, permissions, userId):
 
 
 def writeFile(fileName, userId):
-
+    fileIndexServer = Pyro4.Proxy("PYRONAME:example.fileIndex")
     fileText = ""
     print("Please enter file content\n")
     print("Note: After finishing enter [end] in new line")
@@ -122,6 +125,7 @@ def writeFile(fileName, userId):
 
 
 def readFile(fileName, userId):
+    fileIndexServer = Pyro4.Proxy("PYRONAME:example.fileIndex")
     clientRequest = "READ_FILE"+"|"+userId+"|"+fileName
     peer = fileIndexServer.getPeerUriForRead(str(hash(fileName)))
     if peer.split("|")[0] == "0":
@@ -130,7 +134,7 @@ def readFile(fileName, userId):
         callPeer(peer, clientRequest)
 
 def deleteFile(fileName, userId):
-
+    fileIndexServer = Pyro4.Proxy("PYRONAME:example.fileIndex")
     deleteMsg = """
     Enter
     1 -> Delete locally
