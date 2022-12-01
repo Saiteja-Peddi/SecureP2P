@@ -1,31 +1,15 @@
 {
     "fileList": [
         {
-            "fileName": "f1.txt",
+            "fileName": "./db/f1.txt",
+            "fileNameHash": "567695520328899915",
+            "fileContentHash": "",
+            "timeStamp": "2022-11-27 23:11:21.580534",
             "permission": "p",
-            "createdBy": "saiteja",
+            "createdBy": "sai",
             "userList": [
                 ""
-            ],
-            "path": "./db"
-        },
-        {
-            "fileName": "f2.txt",
-            "permission": "p",
-            "createdBy": "saiteja",
-            "userList": [
-                ""
-            ],
-            "path": "./db"
-        },
-        {
-            "fileName": "f3.txt",
-            "permission": "p",
-            "createdBy": "saiteja",
-            "userList": [
-                ""
-            ],
-            "path": "./db"
+            ]
         }
     ]
 }
