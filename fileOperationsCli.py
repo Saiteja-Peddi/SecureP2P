@@ -160,3 +160,20 @@ def deleteFile(fileName, userId):
                 callPeer(peer, clientRequest)
     else:
         return callPeer(constants.peerName, clientRequest)
+
+
+def goInsideDirectory(directoryname):
+    if verifyFileAvailability(str(hash(directoryname))):
+        return True
+    else:
+        return False
+
+def listFilesInCurrentPath(userId,path):
+    fileIndexServer = Pyro4.Proxy("PYRONAME:example.fileIndex")
+    peerList = fileIndexServer.getAllPeers()
+    clientRequest = "LIST_FILES|"+userId+path
+    for i, uri in enumerate(peerList):
+        callPeer(uri,clientRequest)
+
+
+

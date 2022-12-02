@@ -11,14 +11,14 @@ index = {
     ]
 }
 
-def updateFileIndexJson(fileNameHash, fileContentHash, timeStamp):
+def updateFileIndex(fileNameHash, fileContentHash, timeStamp):
     for ind, peerContent in enumerate(index["fileInd"]):
         for j,fil in enumerate(peerContent["index"]):
             if fileNameHash in fil["fileNameHash"]:
                 index["fileInd"][ind]["index"][j]["timeStamp"] = timeStamp,
                 index["fileInd"][ind]["index"][j]["fileContentHash"] = fileContentHash
 
-def writeToFileIndexJson(jsonObject):
+def writeToFileIndex(jsonObject):
     fileIndex = {
             "id":uuid.uuid4().int,
             "peer":jsonObject["peerUri"],
@@ -29,7 +29,7 @@ def writeToFileIndexJson(jsonObject):
 
     return "1|Successfully updated file index"
 
-def emptyFileIndexJson():
+def emptyFileIndex():
     index["fileInd"] = []
 
 def addToFileIndex(fileObj):
@@ -115,15 +115,21 @@ def getReadPeerURI(fileNameHash):
     else:
         return uri
 
+def getAllAvailablePeersUri():
+    peerList = []
+
+    for ind,peerContent in enumerate(index["fileInd"]):
+        peerList.append(peerContent["peer"])
+
 @Pyro4.expose
 class FileIndex(object):
 
     def __init__(self):
-        emptyFileIndexJson()
+        emptyFileIndex()
         pass
 
     def loadPeerFileIndex(self, jsonObject):
-        return writeToFileIndexJson(jsonObject)
+        return writeToFileIndex(jsonObject)
 
     def addToFileIndexJson(self, requestObj):
         return addToFileIndex(requestObj)
@@ -142,7 +148,7 @@ class FileIndex(object):
         return getReadPeerURI(fileNameHash)
 
     def unlockFileWrite(self, fileNameHash, fileContentHash, timeStamp):
-        updateFileIndexJson(fileNameHash, fileContentHash, timeStamp)
+        updateFileIndex(fileNameHash, fileContentHash, timeStamp)
         lockUnlockFileWrite(fileNameHash, False)
 
     def getPeerURIForDelete(self, fileNameHash):
@@ -150,6 +156,9 @@ class FileIndex(object):
 
     def updateFileDeleteInIndex(self, requestedURI, fileNameHash):
         return updateDeleteFlag(requestedURI, fileNameHash)
+    
+    def getAllPeers(self):
+        return getAllAvailablePeersUri()
 
         
 
