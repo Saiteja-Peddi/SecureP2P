@@ -6,9 +6,11 @@ import getpass
 import Pyro4
 import Pyro4.util
 import constants
-cwd = "./db"
-dbDir = "./db/"
-
+import re
+cwd = "/"
+dbDir = "./db"
+fileNamePattern = re.compile("^([A-Za-z0-9])+(.txt)?$")
+directoryNamePattern = re.compile("^([A-Za-z0-9])+$")
 sys.excepthook = Pyro4.util.excepthook
 
 
@@ -62,14 +64,14 @@ def provideFileOperationsMenu():
     Command Menu:
     1. Create a file: create|<filename>|<permissions>
         Permission: r = read, p = private
-        Supports only .txt file
+        Supports only directory and .txt file
     2. Read a file: read|<filename>
     3. Write to a file: write|<filename>
     4. Delete a file: rmfile|<filename>
     5. Restore a file: restore|<filename>
     8. Go inside a directory: goindir|<directoryname> 
         To go back enter ".." in <directoryname>
-    9. List root files: lsroot
+    9. Go to root directory: goroot
     10. List current working directory files: lscurr
     11. Exit from application: exit
     """
@@ -119,38 +121,51 @@ def main():
                 break
         else:
             print("Please enter valid input")
-    
-    provideFileOperationsMenu()
 
     while 1:
+        provideFileOperationsMenu()
         cliCommand = sys.stdin.readline()
         if "create" in cliCommand and checkCommandInput(cliCommand,True):
             _,fileName,permissions = cliCommand.split("|")
-            fileCli.createFile(dbDir+fileName.strip("\n"), permissions.strip("\n"), userId.strip("\n"))
+            if re.fullmatch(fileNamePattern, fileName):
+                fileCli.createFile(dbDir+cwd+fileName.strip("\n"), permissions.strip("\n"), userId.strip("\n"))
+            else:
+                print("Invalid file type")
+            
 
         elif "read" in cliCommand and checkCommandInput(cliCommand,False):
             _,fileName = cliCommand.split("|")
-            fileCli.readFile(dbDir+fileName.strip("\n"), userId.strip("\n"))
+            fileCli.readFile(dbDir+cwd+fileName.strip("\n"), userId.strip("\n"))
 
         elif "write" in cliCommand and checkCommandInput(cliCommand,False):
             _,fileName = cliCommand.split("|")
-            fileCli.writeFile(dbDir+fileName.strip("\n"), userId.strip("\n"))
+            fileCli.writeFile(dbDir+cwd+fileName.strip("\n"), userId.strip("\n"))
 
         elif "rmfile" in cliCommand and checkCommandInput(cliCommand,False):
             _,fileName = cliCommand.split("|")
-            fileCli.deleteFile(dbDir+fileName.strip("\n"), userId.strip("\n"))
+            fileCli.deleteFile(dbDir+cwd+fileName.strip("\n"), userId.strip("\n"))
 
             # Below link contains how to delete an element from a json file
             # https://stackoverflow.com/questions/71764921/how-to-delete-an-element-in-a-json-file-python
 
         elif "goindir" in cliCommand and checkCommandInput(cliCommand,False):
-            print("Go inside a directory functionality")
+            _,fileName = cliCommand.split("|")
+            if directoryNamePattern.fullmatch(fileName.strip("\n")):
+                cwdUpdateFlag = fileCli.goInsideDirectory(dbDir+cwd+fileName.strip("\n"))
+                if cwdUpdateFlag:
+                    cwd = cwd + fileName.strip("\n")+"/"
+                else:
+                    print("Directory unavailable")
+            else:
+                print("Invalid filename entered")
+            
 
         elif "lscurr" in cliCommand:
-            print("Goes back to the root directory and list all files in the root directory")
+            fileCli.listFilesInCurrentPath(userId ,dbDir+cwd.strip("/"))
 
-        elif "lsroot" in cliCommand:
-            print("Goes back to the root directory and list all files in the root directory")
+        elif "goroot" in cliCommand:
+            cwd = "/"
+            print("Current working directory updated to root folder")
 
         elif "exit" in cliCommand:
             sys.exit()

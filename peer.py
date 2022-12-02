@@ -131,9 +131,10 @@ def createFile(userId, fileName, permissions, userList, timeStamp):
     else:
         writeToFilePermJson(userId, fileName, permissions, userList, str(hash(fileName)), "", timeStamp)
         os.makedirs(os.path.dirname(fileName), exist_ok=True)
-        file = open(fileName, "w")
-        file.write("Please enter file content")
-        file.close()
+        if ".txt" in fileName:
+            file = open(fileName, "w")
+            file.write("Please enter file content")
+            file.close()
         return "1|File created successfully"
 
 
@@ -186,6 +187,9 @@ def deleteFile(userId, fileName):
         return "0|Access denied"
 
 
+def listFilesInPath(userId, path):
+    print("List files in given path that belongs to given user")
+
 @Pyro4.expose
 class Peer(object):
     loadFileIndexServer()
@@ -214,17 +218,12 @@ class Peer(object):
         elif "RESTORE_FILE" in cliMsg:
             print("Restore a file")
 
-        elif "CREATE_DIRECTORY" in cliMsg:
-            print("Create directory")
-        
-        elif "DELETE_DIRECTORY" in cliMsg:
-            print("Delete a directory")
-
         elif "GOIN_DIRECTORY" in cliMsg:
             print("Delete a directory")
 
-        elif "LIST_ROOT" in cliMsg:
-            print("Lists root folder files")
+        elif "LIST_FILES" in cliMsg:
+            _,userId, path = cliMsg.split("|")
+            message = listFilesInPath(userId, path)
 
         else:
             message = "0|Invalid option selected"

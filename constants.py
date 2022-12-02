@@ -3,7 +3,8 @@ pyroHost = "10.0.0.49"
 authServerPort = 9000
 peerPort = 9001
 fileIndexPort = 9002
-peerName = "example.peer"
+peerName = "example.peer1"
+fileIndexUri = "example.fileIndex"
 
 
 def main():
