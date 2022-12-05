@@ -22,14 +22,17 @@ def writeToFileIndex(jsonObject):
     fileIndex = {
             "id":uuid.uuid4().int,
             "peer":jsonObject["peerUri"],
+            "nsHostIp":jsonObject["nsHostIp"],
             "fileCount":jsonObject["fileCount"],
             "index": jsonObject["index"]
         }
+    
     index["fileInd"].append(fileIndex)
-
+    print(index["fileInd"])
     return "1|Successfully updated file index"
 
 def emptyFileIndex():
+    print("Empty File Index Called")
     index["fileInd"] = []
 
 def addToFileIndex(fileObj):
@@ -71,10 +74,14 @@ def lockUnlockFileWrite(fileNameHash, flag):
 def getPeerURI(requestedURI, writeMethodFlag, fileNameHash):
     fileCount = 9999
     uri = ""
-
+    print("Inside get peer uri")
     for ind,peerContent in enumerate(index["fileInd"]):
         if writeMethodFlag:
             for j,fil in enumerate(peerContent["index"]):
+                print(fil["fileNameHash"])
+                print(fileNameHash)
+                print(fil["fileNameHash"] == fileNameHash)
+                print("----------------------")
                 if fil["fileNameHash"] == fileNameHash:
                     uri = "|"+peerContent["peer"]
         else:
@@ -86,29 +93,19 @@ def getPeerURI(requestedURI, writeMethodFlag, fileNameHash):
         return "0|Unable to find a peer"
     else:
         return uri
-
-def updateDeleteFlag(requestedURI, fileNameHash):
-    msg = "0|Error: Unable to update file delete"
-    
-    for ind,peerContent in enumerate(index["fileInd"]):
-        for j,fil in enumerate(peerContent["index"]):
-            if fileNameHash in fil["fileNameHash"] and peerContent["peer"] in requestedURI:
-                index["fileInd"][ind]["index"][j]["fileDeleteFlag"] = True
-                msg = "1|File delete successful"
-
-    return msg
     
 
 def getReadPeerURI(fileNameHash):
     uri = ""
-    tempTimeStamp = datetime.now().date().replace(month=1, day=1) 
+    tempTimeStamp = datetime.datetime.now()
+    tempTimeStamp = tempTimeStamp.replace(month=1, day=1) 
 
     for ind,peerContent in enumerate(index["fileInd"]):
         for j,fil in enumerate(peerContent["index"]):
             if fil["fileNameHash"] == fileNameHash:
-                if tempTimeStamp - datetime.datetime.strptime(fil["timeStamp"], '%b %d %Y %I:%M:%S.%f') < 0:
+                if tempTimeStamp < datetime.datetime.strptime(fil["timeStamp"], '%Y-%m-%d %H:%M:%S.%f'):
                     uri = peerContent["peer"]
-                    tempTimeStamp = datetime.datetime.strptime(fil["timeStamp"], '%b %d %Y %I:%M:%S.%f')
+                    tempTimeStamp = datetime.datetime.strptime(fil["timeStamp"], '%Y-%m-%d %H:%M:%S.%f')
     
     if uri == "":
         return "0|Unable to find a peer"
@@ -117,15 +114,28 @@ def getReadPeerURI(fileNameHash):
 
 def getAllAvailablePeersUri():
     peerList = []
-
     for ind,peerContent in enumerate(index["fileInd"]):
         peerList.append(peerContent["peer"])
+
+def updateDeleteFlag(fileNameHash, flag):
+    for ind,peerContent in enumerate(index["fileInd"]):
+        for j,fil in enumerate(peerContent["index"]):
+            if fil["fileNameHash"] == fileNameHash:
+                index["fileInd"][ind]["index"][j]["fileDeleteFlag"] = flag
+    
+    if flag:
+        msg="1|File deleted successfully"
+    else:
+        msg="1|File restored successfully"
+    return msg
+
+
 
 @Pyro4.expose
 class FileIndex(object):
 
     def __init__(self):
-        emptyFileIndex()
+        # emptyFileIndex()
         pass
 
     def loadPeerFileIndex(self, jsonObject):
@@ -138,7 +148,7 @@ class FileIndex(object):
         return verifyFileAvailability(jsonObject)
     
     def getAvailablePeerURI(self, requestedURI):
-        return getPeerURI(requestedURI)
+        return getPeerURI(requestedURI, False, "")
     
     def lockAndGetPeerURI(self, fileNameHash):
         lockUnlockFileWrite(fileNameHash, True)
@@ -151,12 +161,15 @@ class FileIndex(object):
         updateFileIndex(fileNameHash, fileContentHash, timeStamp)
         lockUnlockFileWrite(fileNameHash, False)
 
-    def getPeerURIForDelete(self, fileNameHash):
-        return getPeerURI("", True, fileNameHash)
+    def performFileDelete(self, fileNameHash):
+        return updateDeleteFlag(fileNameHash, True)
 
-    def updateFileDeleteInIndex(self, requestedURI, fileNameHash):
-        return updateDeleteFlag(requestedURI, fileNameHash)
-    
+    def performFileRestore(self, fileNameHash):
+        return updateDeleteFlag(fileNameHash,False)
+
+    def getPeerURIToVerifyDelOrRestorePerm(self, fileNameHash):
+        return getReadPeerURI(fileNameHash)
+
     def getAllPeers(self):
         return getAllAvailablePeersUri()
 

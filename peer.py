@@ -15,7 +15,9 @@ peerName = constants.peerName
 
 def loadFileIndexServer():
     print("Loading file index server")
-    fileIndexServer = Pyro4.Proxy("PYRONAME:example.fileIndex")
+    nameserver=Pyro4.locateNS(host = constants.fileIndexHost)
+    fileIndexUri = nameserver.lookup("example.fileIndex")
+    fileIndexServer = Pyro4.Proxy(fileIndexUri)
 
     fileCount = 0
     index = []
@@ -42,6 +44,7 @@ def loadFileIndexServer():
 
     indexServerPayload = {
         "peerUri" : peerName,
+        "nsHostIp": constants.pyroHost,
         "fileCount":fileCount,
         "index":index,
     }
@@ -50,13 +53,16 @@ def loadFileIndexServer():
     print(response.split("|")[1])
 
 def addToFileIndex(file):
-    fileIndexServer = Pyro4.Proxy("PYRONAME:example.fileIndex")
+    nameserver=Pyro4.locateNS(host = constants.fileIndexHost)
+    fileIndexUri = nameserver.lookup("example.fileIndex")
+    fileIndexServer = Pyro4.Proxy(fileIndexUri)
     indexServerPayload = {
         "peerUri" :peerName,
         "fileNameHash":file["fileNameHash"],
         "fileContentHash":file["fileContentHash"],
         "timeStamp":file["timeStamp"],
         "fileLock": False,
+        "fileDelete": False
     }
 
     response = fileIndexServer.addToFileIndexJson(indexServerPayload)
@@ -89,7 +95,7 @@ def updateFilePermJson(fileName, fileContentHash, timeStamp):
         file_data = json.load(file)
         for ind,fil in enumerate(file_data["fileList"]):
             if fileName in fil["fileName"]:
-                file_data["fileList"][ind]["timeStamp"] = datetime.datetime.strptime(timeStamp, '%b %d %Y %I:%M:%S.%f')
+                file_data["fileList"][ind]["timeStamp"] = str(datetime.datetime.strptime(timeStamp, '%Y-%m-%d %H:%M:%S.%f'))
                 file_data["fileList"][ind]["fileContentHash"] = fileContentHash
 
 
@@ -165,24 +171,8 @@ def readFile(userId, fileName):
 
 def deleteFile(userId, fileName):
 
-    if verifyUserPermissions(userId,fileName,False,False,True):
-        source = fileName
-        destination = "./db/backup/"+fileName
-        with open('file_perm.json', "r") as f:
-            file_data = json.load(f)
-            for ind,fil in enumerate(file_data["fileList"]):
-                if fileName in fil["fileName"]:
-                    file_data["fileList"].pop(ind)
-        f.close()
-        with open('file_perm.json', "w") as f:
-            json.dump(file_data,f)
-        f.close()
-
-        fileIndexServer = Pyro4.Proxy("PYRONAME:example.fileIndex")
-        shutil.move(source, destination)
-        msg = fileIndexServer.updateFileDeleteInIndex(peerName, str(hash(fileName)))
-        return msg
-    
+    if verifyUserPermissions(userId,fileName,False,False,True):   
+        return "1|File can be deleted"
     else:
         return "0|Access denied"
 
@@ -216,6 +206,7 @@ class Peer(object):
             message = deleteFile(userId, fileName)
         
         elif "RESTORE_FILE" in cliMsg:
+            _,userId, fileName = cliMsg.split("|")
             print("Restore a file")
 
         elif "GOIN_DIRECTORY" in cliMsg:

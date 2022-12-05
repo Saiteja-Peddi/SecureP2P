@@ -7,7 +7,8 @@ import Pyro4
 import Pyro4.util
 import constants
 import re
-cwd = "/"
+
+
 dbDir = "./db"
 fileNamePattern = re.compile("^([A-Za-z0-9])+(.txt)?$")
 directoryNamePattern = re.compile("^([A-Za-z0-9])+$")
@@ -96,7 +97,7 @@ def checkCommandInput(cliCommand,create):
 
 
 def main():
-
+    cwd = "/"
     authServer = Pyro4.Proxy("PYRONAME:example.authServer")
 
     while 1:
@@ -147,6 +148,10 @@ def main():
 
             # Below link contains how to delete an element from a json file
             # https://stackoverflow.com/questions/71764921/how-to-delete-an-element-in-a-json-file-python
+
+        elif "restore" in cliCommand and checkCommandInput(cliCommand,False):
+            _,fileName = cliCommand.split("|")
+            fileCli.restoreFile(dbDir+cwd+fileName.strip("\n"), userId.strip("\n"))
 
         elif "goindir" in cliCommand and checkCommandInput(cliCommand,False):
             _,fileName = cliCommand.split("|")

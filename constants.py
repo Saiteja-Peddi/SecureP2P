@@ -1,5 +1,6 @@
 
-pyroHost = "10.0.0.49"
+pyroHost = "10.200.77.245"
+fileIndexHost = "10.200.77.245"
 authServerPort = 9000
 peerPort = 9001
 fileIndexPort = 9002
