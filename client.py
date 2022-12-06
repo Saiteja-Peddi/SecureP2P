@@ -65,7 +65,8 @@ def provideFileOperationsMenu():
     Command Menu:
     1. Create a file: create|<filename>|<permissions>
         Permission: r = read, p = private
-        Supports only directory and .txt file
+        Supports only directory and .txt file.
+        Directories cannot be set to private
     2. Read a file: read|<filename>
     3. Write to a file: write|<filename>
     4. Delete a file: rmfile|<filename>
@@ -98,7 +99,9 @@ def checkCommandInput(cliCommand,create):
 
 def main():
     cwd = "/"
-    authServer = Pyro4.Proxy("PYRONAME:example.authServer")
+    nameserver=Pyro4.locateNS(host = constants.autheServerHost)
+    authIndexUri = nameserver.lookup("example.authServer")
+    authServer = Pyro4.Proxy(authIndexUri)
 
     while 1:
         provideLoginOptions()
@@ -128,7 +131,9 @@ def main():
         cliCommand = sys.stdin.readline()
         if "create" in cliCommand and checkCommandInput(cliCommand,True):
             _,fileName,permissions = cliCommand.split("|")
-            if re.fullmatch(fileNamePattern, fileName):
+            if re.fullmatch(directoryNamePattern, fileName) and permissions.strip("\n") == "p":
+                print ("Cannot set directory permissions to private")
+            elif re.fullmatch(fileNamePattern, fileName):
                 fileCli.createFile(dbDir+cwd+fileName.strip("\n"), permissions.strip("\n"), userId.strip("\n"))
             else:
                 print("Invalid file type")

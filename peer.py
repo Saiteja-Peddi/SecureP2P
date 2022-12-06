@@ -13,11 +13,12 @@ peerName = constants.peerName
 #To start name server enter below command in the shell
 # python -m Pyro4.naming -n <your_hostname>
 
+nameserver=Pyro4.locateNS(host = constants.fileIndexHost)
+fileIndexUri = nameserver.lookup("example.fileIndex")
+fileIndexServer = Pyro4.Proxy(fileIndexUri)
+
 def loadFileIndexServer():
     print("Loading file index server")
-    nameserver=Pyro4.locateNS(host = constants.fileIndexHost)
-    fileIndexUri = nameserver.lookup("example.fileIndex")
-    fileIndexServer = Pyro4.Proxy(fileIndexUri)
 
     fileCount = 0
     index = []
@@ -34,7 +35,7 @@ def loadFileIndexServer():
                         "timeStamp":fil["timeStamp"],
                         "fileContentHash":fil["fileContentHash"],
                         "fileLock":False,
-                        "fileDelete": False
+                        "fileDelete": False if fil["fileDelete"] == 0 else True
                     }
                 )
 
@@ -53,16 +54,13 @@ def loadFileIndexServer():
     print(response.split("|")[1])
 
 def addToFileIndex(file):
-    nameserver=Pyro4.locateNS(host = constants.fileIndexHost)
-    fileIndexUri = nameserver.lookup("example.fileIndex")
-    fileIndexServer = Pyro4.Proxy(fileIndexUri)
     indexServerPayload = {
         "peerUri" :peerName,
         "fileNameHash":file["fileNameHash"],
         "fileContentHash":file["fileContentHash"],
         "timeStamp":file["timeStamp"],
         "fileLock": False,
-        "fileDelete": False
+        "fileDelete": False if file["fileDelete"] == 0 else True
     }
 
     response = fileIndexServer.addToFileIndexJson(indexServerPayload)
@@ -82,6 +80,7 @@ def writeToFilePermJson(userId, fileName, permissions, userList, fileNameHash, f
             "permission":permissions.strip("\n"),
             "createdBy":userId,
             "userList":userList.split(","),
+            "fileDelete":0
         }
 
         addToFileIndex(fileMeta)
@@ -131,7 +130,8 @@ def verifyUserPermissions(userId, fileName, checkWrite, checkRead, checkDelete):
         file.close()
 
 def createFile(userId, fileName, permissions, userList, timeStamp):
-
+    print("Peer create file")
+    print(fileName)
     if os.path.isfile(fileName):
         return "0|File already exists"
     else:
@@ -171,7 +171,15 @@ def readFile(userId, fileName):
 
 def deleteFile(userId, fileName):
 
-    if verifyUserPermissions(userId,fileName,False,False,True):   
+    if verifyUserPermissions(userId,fileName,False,False,True):
+        with open('file_perm.json','r+') as file:
+            file_data = json.load(file)
+            for ind,fil in enumerate(file_data["fileList"]):
+                if fileName in fil["fileName"]:
+                    file_data["fileList"][ind]["fileDelete"] = 1
+            file.seek(0)
+            json.dump(file_data, file, indent = 4)
+            file.close()   
         return "1|File can be deleted"
     else:
         return "0|Access denied"
@@ -179,6 +187,32 @@ def deleteFile(userId, fileName):
 
 def listFilesInPath(userId, path):
     print("List files in given path that belongs to given user")
+    msg = "0|Files unavailable in this peer"
+    filesList = os.listdir(path)
+    print(filesList)
+    for i, file in enumerate(filesList):
+        if verifyUserPermissions(userId, file, False, True, False) and fileIndexServer.checkIfFileIsDeleted(str(hash(path+"/"+file))).split("|")[1] == "False":
+            if "1|" in msg:
+                msg = msg+","+file
+            else:
+                msg = "1|"+file
+            print(msg)
+    return msg
+
+def checkRestorePermission(userId, fileName):
+    if verifyUserPermissions(userId,fileName,False,False,True):
+        with open('file_perm.json','r+') as file:
+            file_data = json.load(file)
+            for ind,fil in enumerate(file_data["fileList"]):
+                if fileName in fil["fileName"]:
+                    file_data["fileList"][ind]["fileDelete"] = 0
+            file.seek(0)
+            json.dump(file_data, file, indent = 4)
+            file.close()   
+        return "1|File can be restored"
+    else:
+        return "0|Access denied"
+
 
 @Pyro4.expose
 class Peer(object):
@@ -207,7 +241,7 @@ class Peer(object):
         
         elif "RESTORE_FILE" in cliMsg:
             _,userId, fileName = cliMsg.split("|")
-            print("Restore a file")
+            message = checkRestorePermission(userId, fileName)
 
         elif "GOIN_DIRECTORY" in cliMsg:
             print("Delete a directory")

@@ -42,7 +42,7 @@ def addToFileIndex(fileObj):
         "timeStamp":fileObj["timeStamp"],
         "fileContentHash":fileObj["fileContentHash"],
         "fileLock":fileObj["fileLock"],
-        "fileDeleteFlag": False
+        "fileDelete": False
     }
 
     for ind, peerContent in enumerate(index["fileInd"]):
@@ -60,6 +60,8 @@ def verifyFileAvailability(jsonObject):
         if len(peerContent["index"]) != 0:
             for j,fil in enumerate(peerContent["index"]):
                 if jsonObject["fileNameHash"] in fil["fileNameHash"]:
+                        print(fil["fileNameHash"])
+                        print(jsonObject["fileNameHash"])
                         msg = "0|File already exists"
     
     return msg
@@ -83,11 +85,11 @@ def getPeerURI(requestedURI, writeMethodFlag, fileNameHash):
                 print(fil["fileNameHash"] == fileNameHash)
                 print("----------------------")
                 if fil["fileNameHash"] == fileNameHash:
-                    uri = "|"+peerContent["peer"]
+                    uri = "|"+peerContent["peer"]+","+peerContent["nsHostIp"]
         else:
             if peerContent["fileCount"] < fileCount and peerContent["peer"] != requestedURI:
                 fileCount = peerContent["fileCount"]
-                uri = peerContent["peer"]
+                uri = peerContent["peer"]+","+peerContent["nsHostIp"]
 
     if uri == "":
         return "0|Unable to find a peer"
@@ -104,7 +106,7 @@ def getReadPeerURI(fileNameHash):
         for j,fil in enumerate(peerContent["index"]):
             if fil["fileNameHash"] == fileNameHash:
                 if tempTimeStamp < datetime.datetime.strptime(fil["timeStamp"], '%Y-%m-%d %H:%M:%S.%f'):
-                    uri = peerContent["peer"]
+                    uri = peerContent["peer"]+","+peerContent["nsHostIp"]
                     tempTimeStamp = datetime.datetime.strptime(fil["timeStamp"], '%Y-%m-%d %H:%M:%S.%f')
     
     if uri == "":
@@ -113,21 +115,35 @@ def getReadPeerURI(fileNameHash):
         return uri
 
 def getAllAvailablePeersUri():
-    peerList = []
+    peerList = ""
     for ind,peerContent in enumerate(index["fileInd"]):
-        peerList.append(peerContent["peer"])
+        peerList = peerContent["peer"]+","+peerContent["nsHostIp"]
+        if not ind == len(index["fileInd"])-1:
+            peerList += "|"
+    return peerList
 
 def updateDeleteFlag(fileNameHash, flag):
     for ind,peerContent in enumerate(index["fileInd"]):
         for j,fil in enumerate(peerContent["index"]):
             if fil["fileNameHash"] == fileNameHash:
-                index["fileInd"][ind]["index"][j]["fileDeleteFlag"] = flag
+                index["fileInd"][ind]["index"][j]["fileDelete"] = flag
     
     if flag:
         msg="1|File deleted successfully"
     else:
         msg="1|File restored successfully"
     return msg
+
+def checkDeleteFlag(fileNameHash):
+    msg = "0|File cannot be found"
+    for ind,peerContent in enumerate(index["fileInd"]):
+        for j,fil in enumerate(peerContent["index"]):
+            if fil["fileNameHash"] == fileNameHash:
+                if fil["fileDelete"] == True:
+                    msg = "1|True"
+                else:
+                    msg = "1|False"
+    return msg            
 
 
 
@@ -172,6 +188,9 @@ class FileIndex(object):
 
     def getAllPeers(self):
         return getAllAvailablePeersUri()
+    
+    def checkIfFileIsDeleted(self, fileNameHash):
+        return checkDeleteFlag(fileNameHash)
 
         
 

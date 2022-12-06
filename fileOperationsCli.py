@@ -4,30 +4,23 @@ import datetime
 import uuid
 import Pyro4
 import constants
+import re
 
+
+fileNamePattern = re.compile("^([A-Za-z0-9])+(.txt)?$")
 # fileIndexServer = Pyro4.Proxy("PYRONAME:example.fileIndex")
-localPeer = Pyro4.Proxy("PYRONAME:"+constants.peerName)
+# localPeer = Pyro4.Proxy("PYRONAME:"+constants.peerName)
 
+nameserver=Pyro4.locateNS(host = constants.fileIndexHost)
+fileIndexUri = nameserver.lookup("example.fileIndex")
+fileIndexServer = Pyro4.Proxy(fileIndexUri)
 
-def callPeerCopy(nsIP, peer,clientRequest):
+def callPeer(peer,clientRequest):
+    peerName,nsIP = peer.split(",")
+    nsIP = nsIP.strip("\n")
     nameserver=Pyro4.locateNS(host = nsIP)
-    peerUri = nameserver.lookup(peer)
-    peer = Pyro4.Proxy(peerUri)
-    serverResponse = peer.fileRequestHandler(clientRequest)
-    if serverResponse.split("|")[0] == "1":
-        print("\n----------------------------------------")
-        print("Server response:\n")
-        print(serverResponse.split("|")[1])
-        print("----------------------------------------")
-        return True
-    else:
-        print(serverResponse.split("|")[1])
-        return False
-
-
-def callPeer(peer, clientRequest):
-    #Client creating api request to server
-    peerObj = Pyro4.Proxy("PYRONAME:"+peer)
+    peerUri = nameserver.lookup(peerName)
+    peerObj = Pyro4.Proxy(peerUri)
     serverResponse = peerObj.fileRequestHandler(clientRequest)
     if serverResponse.split("|")[0] == "1":
         print("\n----------------------------------------")
@@ -39,10 +32,9 @@ def callPeer(peer, clientRequest):
         print(serverResponse.split("|")[1])
         return False
 
+
+
 def verifyFileAvailability(fileNameHash):
-    nameserver=Pyro4.locateNS(host = constants.fileIndexHost)
-    fileIndexUri = nameserver.lookup("example.fileIndex")
-    fileIndexServer = Pyro4.Proxy(fileIndexUri)
     jsonObject = {
         "fileNameHash": fileNameHash
     }
@@ -56,9 +48,6 @@ def verifyFileAvailability(fileNameHash):
         return False
 
 def createFile(fileName, permissions, userId):
-    nameserver=Pyro4.locateNS(host = constants.fileIndexHost)
-    fileIndexUri = nameserver.lookup("example.fileIndex")
-    fileIndexServer = Pyro4.Proxy(fileIndexUri)
     i = 0
     userList = ""
     createMsg = """
@@ -66,8 +55,10 @@ def createFile(fileName, permissions, userId):
     1 -> Create Locally
     2 -> Create Locally and a Peer
     """
+    print(fileName)
     if verifyFileAvailability(str(hash(fileName))):
-        if "p" not in permissions:
+        
+        if "p" not in permissions and re.fullmatch(fileNamePattern, fileName):
             print("Please enter userlist who has access to this file\n")
             print("Note: After finishing enter [end]")
             print("-------------------------------------------------------\n")
@@ -103,18 +94,12 @@ def createFile(fileName, permissions, userId):
                 print("\n----------------------------------------")
             else:
                 callPeer(peer, clientRequest)
-        return callPeer(constants.peerName, clientRequest)
-        
-
-
-        
+        return callPeer(constants.peerName+","+constants.pyroHost, clientRequest)
 
 
 
 def writeFile(fileName, userId):
-    nameserver=Pyro4.locateNS(host = constants.fileIndexHost)
-    fileIndexUri = nameserver.lookup("example.fileIndex")
-    fileIndexServer = Pyro4.Proxy(fileIndexUri)
+    
     fileText = ""
     print("Please enter file content\n")
     print("Note: After finishing enter [end] in new line")
@@ -142,9 +127,6 @@ def writeFile(fileName, userId):
 
 
 def readFile(fileName, userId):
-    nameserver=Pyro4.locateNS(host = constants.fileIndexHost)
-    fileIndexUri = nameserver.lookup("example.fileIndex")
-    fileIndexServer = Pyro4.Proxy(fileIndexUri)
     clientRequest = "READ_FILE"+"|"+userId+"|"+fileName
     peer = fileIndexServer.getPeerUriForRead(str(hash(fileName)))
     if peer.split("|")[0] == "0":
@@ -153,10 +135,6 @@ def readFile(fileName, userId):
         callPeer(peer, clientRequest)
 
 def deleteFile(fileName, userId):
-    nameserver=Pyro4.locateNS(host = constants.fileIndexHost)
-    fileIndexUri = nameserver.lookup("example.fileIndex")
-    fileIndexServer = Pyro4.Proxy(fileIndexUri)
-
     clientRequest = "DELETE_FILE"+"|"+userId+"|"+fileName
 
     peer = fileIndexServer.getPeerURIToVerifyDelOrRestorePerm(str(hash(fileName)))
@@ -168,9 +146,6 @@ def deleteFile(fileName, userId):
     
 
 def restoreFile(fileName, userId):
-    nameserver=Pyro4.locateNS(host = constants.fileIndexHost)
-    fileIndexUri = nameserver.lookup("example.fileIndex")
-    fileIndexServer = Pyro4.Proxy(fileIndexUri)
     clientRequest = "RESTORE_FILE"+"|"+userId+"|"+fileName
 
     peer = fileIndexServer.getPeerURIToVerifyDelOrRestorePerm(str(hash(fileName)))
@@ -188,13 +163,10 @@ def goInsideDirectory(directoryname):
         return False
 
 def listFilesInCurrentPath(userId,path):
-    nameserver=Pyro4.locateNS(host = constants.fileIndexHost)
-    fileIndexUri = nameserver.lookup("example.fileIndex")
-    fileIndexServer = Pyro4.Proxy(fileIndexUri)
     peerList = fileIndexServer.getAllPeers()
-    clientRequest = "LIST_FILES|"+userId+path
-    for i, uri in enumerate(peerList):
-        callPeer(uri,clientRequest)
+    clientRequest = "LIST_FILES|"+userId+"|"+path
+    for i, peer in enumerate(peerList.split("|")):
+        callPeer(peer,clientRequest)
 
 
 
