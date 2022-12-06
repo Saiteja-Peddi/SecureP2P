@@ -39,7 +39,6 @@ def verifyFileAvailability(fileNameHash):
         "fileNameHash": fileNameHash
     }
     indexServerResponse = fileIndexServer.checkFileAvailability(jsonObject)
-    print(indexServerResponse)
     if indexServerResponse.split("|")[0] == "1":
         print(indexServerResponse.split("|")[1])
         return True
@@ -55,10 +54,9 @@ def createFile(fileName, permissions, userId):
     1 -> Create Locally
     2 -> Create Locally and a Peer
     """
-    print(fileName)
     if verifyFileAvailability(str(hash(fileName))):
         
-        if "p" not in permissions and re.fullmatch(fileNamePattern, fileName):
+        if "p" not in permissions:
             print("Please enter userlist who has access to this file\n")
             print("Note: After finishing enter [end]")
             print("-------------------------------------------------------\n")
@@ -97,6 +95,33 @@ def createFile(fileName, permissions, userId):
         return callPeer(constants.peerName+","+constants.pyroHost, clientRequest)
 
 
+def createDirectory(fileName, userId):
+    i = 0
+    createMsg = """
+    Enter
+    1 -> Create Locally
+    2 -> Create Locally and a Peer
+    """
+    clientRequest = "CREATE_DIRECTORY"+"|"+userId+"|"+fileName+"|"+str(datetime.datetime.now())
+    while True:
+        print(createMsg)
+        opt = int(input())
+        if opt == 1 or opt == 2:
+            break
+        else:
+            print("Invalid option selected")
+
+    if opt == 2:
+        peer = fileIndexServer.getAvailablePeerURI(constants.peerName)
+        if peer.split("|")[0] == "0":
+            print("\n----------------------------------------")
+            print("Unable to find peers in the network. File can be created only locally")
+            print("\n----------------------------------------")
+        else:
+            callPeer(peer, clientRequest)
+
+    return callPeer(constants.peerName+","+constants.pyroHost, clientRequest)
+
 
 def writeFile(fileName, userId):
     
@@ -134,6 +159,7 @@ def readFile(fileName, userId):
     else:
         callPeer(peer, clientRequest)
 
+
 def deleteFile(fileName, userId):
     clientRequest = "DELETE_FILE"+"|"+userId+"|"+fileName
 
@@ -157,10 +183,11 @@ def restoreFile(fileName, userId):
 
 
 def goInsideDirectory(directoryname):
-    if verifyFileAvailability(str(hash(directoryname))):
+    if not verifyFileAvailability(str(hash(directoryname))):
         return True
     else:
         return False
+
 
 def listFilesInCurrentPath(userId,path):
     peerList = fileIndexServer.getAllPeers()

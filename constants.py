@@ -1,7 +1,7 @@
 
-pyroHost = "10.0.0.49"
-fileIndexHost = "10.0.0.49"
-autheServerHost = "10.0.0.49"
+pyroHost = "192.168.0.33"
+fileIndexHost = "192.168.0.33"
+autheServerHost = "192.168.0.33"
 authServerPort = 9000
 peerPort = 9001
 fileIndexPort = 9002

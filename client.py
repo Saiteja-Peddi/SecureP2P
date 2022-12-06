@@ -64,15 +64,15 @@ def provideFileOperationsMenu():
     menu ="""
     Command Menu:
     1. Create a file: create|<filename>|<permissions>
-        Permission: r = read, p = private
+        Permission: r = read, rw = read & write, p = private
         Supports only directory and .txt file.
-        Directories cannot be set to private
     2. Read a file: read|<filename>
     3. Write to a file: write|<filename>
     4. Delete a file: rmfile|<filename>
     5. Restore a file: restore|<filename>
-    8. Go inside a directory: goindir|<directoryname> 
-        To go back enter ".." in <directoryname>
+    6. Create a directory: makedir|<directoryname>
+    7. Go inside a directory: goindir|<directoryname> 
+    8. Go back from a directory: gobackdir   
     9. Go to root directory: goroot
     10. List current working directory files: lscurr
     11. Exit from application: exit
@@ -111,7 +111,6 @@ def main():
             print("Enter User Id:")
             userId = input()
             flag = authenticateUser(authServer, userId)
-            print(flag)
             if flag:
                 break
             
@@ -120,7 +119,6 @@ def main():
             print("Enter User Id:")
             userId = input()
             flag = createUser(authServer, userId)
-            print(flag)
             if flag:
                 break
         else:
@@ -131,9 +129,7 @@ def main():
         cliCommand = sys.stdin.readline()
         if "create" in cliCommand and checkCommandInput(cliCommand,True):
             _,fileName,permissions = cliCommand.split("|")
-            if re.fullmatch(directoryNamePattern, fileName) and permissions.strip("\n") == "p":
-                print ("Cannot set directory permissions to private")
-            elif re.fullmatch(fileNamePattern, fileName):
+            if re.fullmatch(fileNamePattern, fileName):
                 fileCli.createFile(dbDir+cwd+fileName.strip("\n"), permissions.strip("\n"), userId.strip("\n"))
             else:
                 print("Invalid file type")
@@ -158,20 +154,34 @@ def main():
             _,fileName = cliCommand.split("|")
             fileCli.restoreFile(dbDir+cwd+fileName.strip("\n"), userId.strip("\n"))
 
+        elif "makedir"in cliCommand and checkCommandInput(cliCommand,False):
+            _,fileName = cliCommand.split("|")
+            if directoryNamePattern.fullmatch(fileName.strip("\n")):
+                fileCli.createDirectory(dbDir+cwd+fileName.strip("\n"), userId.strip("\n"))
+            else:
+                print("Invalid file type")
+
         elif "goindir" in cliCommand and checkCommandInput(cliCommand,False):
             _,fileName = cliCommand.split("|")
             if directoryNamePattern.fullmatch(fileName.strip("\n")):
                 cwdUpdateFlag = fileCli.goInsideDirectory(dbDir+cwd+fileName.strip("\n"))
                 if cwdUpdateFlag:
-                    cwd = cwd + fileName.strip("\n")+"/"
+                    cwd = cwd +fileName.strip("\n")+"/"
                 else:
                     print("Directory unavailable")
             else:
                 print("Invalid filename entered")
-            
+        
+        elif "gobackdir" in cliCommand:
+            if "/" == cwd:
+                print("You are in root folder")
+            else:
+                cwdList = cwd.split("/").pop()
+                cwd = "/" + "/".join(cwdList)
+                
 
         elif "lscurr" in cliCommand:
-            fileCli.listFilesInCurrentPath(userId ,dbDir+cwd.strip("/"))
+            fileCli.listFilesInCurrentPath(userId ,dbDir+cwd.rstrip("/"))
 
         elif "goroot" in cliCommand:
             cwd = "/"

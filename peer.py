@@ -2,14 +2,12 @@ import Pyro4
 import json
 import rsa
 import os
-import shutil
 import constants
-import uuid
 import datetime
+import time
 
 peerName = constants.peerName
-
-
+schedulerFlag = False
 #To start name server enter below command in the shell
 # python -m Pyro4.naming -n <your_hostname>
 
@@ -18,7 +16,6 @@ fileIndexUri = nameserver.lookup("example.fileIndex")
 fileIndexServer = Pyro4.Proxy(fileIndexUri)
 
 def loadFileIndexServer():
-    print("Loading file index server")
 
     fileCount = 0
     index = []
@@ -110,7 +107,7 @@ def verifyUserPermissions(userId, fileName, checkWrite, checkRead, checkDelete):
         for ind,fil in enumerate(file_data["fileList"]):
             if fileName in fil["fileName"]:
                 if checkWrite:
-                    if userId in fil["createdBy"]:
+                    if userId in fil["createdBy"] or (userId in fil["userList"] and "rw" in fil["permission"]):
                         return True
                     else:
                         return False
@@ -130,19 +127,24 @@ def verifyUserPermissions(userId, fileName, checkWrite, checkRead, checkDelete):
         file.close()
 
 def createFile(userId, fileName, permissions, userList, timeStamp):
-    print("Peer create file")
-    print(fileName)
     if os.path.isfile(fileName):
         return "0|File already exists"
     else:
         writeToFilePermJson(userId, fileName, permissions, userList, str(hash(fileName)), "", timeStamp)
         os.makedirs(os.path.dirname(fileName), exist_ok=True)
-        if ".txt" in fileName:
-            file = open(fileName, "w")
-            file.write("Please enter file content")
-            file.close()
+        file = open(fileName, "w")
+        file.write("Please enter file content")
+        file.close()
         return "1|File created successfully"
 
+def createDirectory(userId, fileName, timeStamp):
+    print(fileName)
+    if os.path.isfile(fileName):
+        return "0|File already exists"
+    else:
+        writeToFilePermJson(userId, fileName, "", "", str(hash(fileName)), "", timeStamp)
+        os.mkdir(fileName)
+        return "1|Directory created successfully"
 
 def writeFile(userId, fileName, fileContent, fileContentHash, timeStamp):
 
@@ -186,17 +188,14 @@ def deleteFile(userId, fileName):
 
 
 def listFilesInPath(userId, path):
-    print("List files in given path that belongs to given user")
     msg = "0|Files unavailable in this peer"
     filesList = os.listdir(path)
-    print(filesList)
     for i, file in enumerate(filesList):
         if verifyUserPermissions(userId, file, False, True, False) and fileIndexServer.checkIfFileIsDeleted(str(hash(path+"/"+file))).split("|")[1] == "False":
             if "1|" in msg:
                 msg = msg+","+file
             else:
                 msg = "1|"+file
-            print(msg)
     return msg
 
 def checkRestorePermission(userId, fileName):
@@ -213,10 +212,28 @@ def checkRestorePermission(userId, fileName):
     else:
         return "0|Access denied"
 
+def deleteScheduler():
+    global schedulerFlag
+    if schedulerFlag:
+        return
+    while True:
+        schedulerFlag = True
+        with open('file_perm.json','r+') as file:
+            file_data = json.load(file)
+            for ind,fil in enumerate(file_data["fileList"]):
+                if fil["fileDelete"] == 1:
+                    if os.path.isfile(fil["fileName"]):
+                        os.remove(fil["fileName"])
+                        file_data.pop(file_data["fileList"][ind])
+            file.seek(0)
+            json.dump(file_data, file, indent = 4)
+            file.close()
+        time.sleep(900)
 
 @Pyro4.expose
 class Peer(object):
     loadFileIndexServer()
+    # deleteScheduler()
 
     def __init__(self):
         pass
@@ -243,8 +260,9 @@ class Peer(object):
             _,userId, fileName = cliMsg.split("|")
             message = checkRestorePermission(userId, fileName)
 
-        elif "GOIN_DIRECTORY" in cliMsg:
-            print("Delete a directory")
+        elif "CREATE_DIRECTORY" in cliMsg:
+            _,userId, fileName, timeStamp = cliMsg.split("|")
+            message = createDirectory(userId.strip("\n"), fileName.strip("\n"), timeStamp)
 
         elif "LIST_FILES" in cliMsg:
             _,userId, path = cliMsg.split("|")

@@ -5,6 +5,7 @@ import Pyro4
 import sys
 sys.path.append("..")
 import constants
+from cryptography.fernet import Fernet
 
 def writeToUserListFile(userId, hashedPassword):
         with open('user_list.json','r+') as file:
@@ -25,12 +26,14 @@ def writeToUserListFile(userId, hashedPassword):
             (encKey, decKey) = rsa.newkeys(512)
             encKey = rsa.PublicKey.save_pkcs1(encKey)
             decKey = rsa.PrivateKey.save_pkcs1(decKey)
+            fernetKey = Fernet.generate_key()
 
             user = {
                 "id":userId,
                 "pwd":hashedPassword,
                 "pvt_key":encKey.decode(),
-                "pub_key":decKey.decode()
+                "pub_key":decKey.decode(),
+                "fernetKey": fernetKey
             }
             user_data['usersList'].append(user)
 
