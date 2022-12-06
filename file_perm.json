@@ -1,3 +1,16 @@
 {
-    "fileList": []
+    "fileList": [
+        {
+            "fileName": "./db/f1.txt",
+            "fileNameHash": "381243667671053599",
+            "fileContentHash": "",
+            "timeStamp": "2022-12-05 20:19:41.571539",
+            "permission": "r",
+            "createdBy": "prasanna",
+            "userList": [
+                "sai"
+            ],
+            "fileDelete": 0
+        }
+    ]
 }

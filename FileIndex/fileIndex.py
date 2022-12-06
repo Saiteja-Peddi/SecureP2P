@@ -28,11 +28,12 @@ def writeToFileIndex(jsonObject):
         }
     
     index["fileInd"].append(fileIndex)
+    print("----------------------")
     print(index["fileInd"])
+    print("----------------------")
     return "1|Successfully updated file index"
 
 def emptyFileIndex():
-    print("Empty File Index Called")
     index["fileInd"] = []
 
 def addToFileIndex(fileObj):
@@ -60,8 +61,6 @@ def verifyFileAvailability(jsonObject):
         if len(peerContent["index"]) != 0:
             for j,fil in enumerate(peerContent["index"]):
                 if jsonObject["fileNameHash"] in fil["fileNameHash"]:
-                        print(fil["fileNameHash"])
-                        print(jsonObject["fileNameHash"])
                         msg = "0|File already exists"
     
     return msg
@@ -76,14 +75,9 @@ def lockUnlockFileWrite(fileNameHash, flag):
 def getPeerURI(requestedURI, writeMethodFlag, fileNameHash):
     fileCount = 9999
     uri = ""
-    print("Inside get peer uri")
     for ind,peerContent in enumerate(index["fileInd"]):
         if writeMethodFlag:
             for j,fil in enumerate(peerContent["index"]):
-                print(fil["fileNameHash"])
-                print(fileNameHash)
-                print(fil["fileNameHash"] == fileNameHash)
-                print("----------------------")
                 if fil["fileNameHash"] == fileNameHash:
                     uri = "|"+peerContent["peer"]+","+peerContent["nsHostIp"]
         else:
