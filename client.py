@@ -7,7 +7,8 @@ import Pyro4
 import Pyro4.util
 import constants
 import re
-cwd = "/"
+
+
 dbDir = "./db"
 fileNamePattern = re.compile("^([A-Za-z0-9])+(.txt)?$")
 directoryNamePattern = re.compile("^([A-Za-z0-9])+$")
@@ -64,7 +65,8 @@ def provideFileOperationsMenu():
     Command Menu:
     1. Create a file: create|<filename>|<permissions>
         Permission: r = read, p = private
-        Supports only directory and .txt file
+        Supports only directory and .txt file.
+        Directories cannot be set to private
     2. Read a file: read|<filename>
     3. Write to a file: write|<filename>
     4. Delete a file: rmfile|<filename>
@@ -96,8 +98,10 @@ def checkCommandInput(cliCommand,create):
 
 
 def main():
-
-    authServer = Pyro4.Proxy("PYRONAME:example.authServer")
+    cwd = "/"
+    nameserver=Pyro4.locateNS(host = constants.autheServerHost)
+    authIndexUri = nameserver.lookup("example.authServer")
+    authServer = Pyro4.Proxy(authIndexUri)
 
     while 1:
         provideLoginOptions()
@@ -127,7 +131,9 @@ def main():
         cliCommand = sys.stdin.readline()
         if "create" in cliCommand and checkCommandInput(cliCommand,True):
             _,fileName,permissions = cliCommand.split("|")
-            if re.fullmatch(fileNamePattern, fileName):
+            if re.fullmatch(directoryNamePattern, fileName) and permissions.strip("\n") == "p":
+                print ("Cannot set directory permissions to private")
+            elif re.fullmatch(fileNamePattern, fileName):
                 fileCli.createFile(dbDir+cwd+fileName.strip("\n"), permissions.strip("\n"), userId.strip("\n"))
             else:
                 print("Invalid file type")
@@ -147,6 +153,10 @@ def main():
 
             # Below link contains how to delete an element from a json file
             # https://stackoverflow.com/questions/71764921/how-to-delete-an-element-in-a-json-file-python
+
+        elif "restore" in cliCommand and checkCommandInput(cliCommand,False):
+            _,fileName = cliCommand.split("|")
+            fileCli.restoreFile(dbDir+cwd+fileName.strip("\n"), userId.strip("\n"))
 
         elif "goindir" in cliCommand and checkCommandInput(cliCommand,False):
             _,fileName = cliCommand.split("|")
