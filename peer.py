@@ -11,15 +11,15 @@ schedulerFlag = False
 #To start name server enter below command in the shell
 # python -m Pyro4.naming -n <your_hostname>
 
-nameserver=Pyro4.locateNS(host = constants.fileIndexHost)
-fileIndexUri = nameserver.lookup("example.fileIndex")
-fileIndexServer = Pyro4.Proxy(fileIndexUri)
+
 
 def loadFileIndexServer():
-
+    nameserver=Pyro4.locateNS(host = constants.fileIndexHost)
+    fileIndexUri = nameserver.lookup("example.fileIndex")
+    fileIndexServer = Pyro4.Proxy(fileIndexUri)
     fileCount = 0
     index = []
-    with open('file_perm.json','r+') as file:
+    with open('file_perm.json','r') as file:
         file_data = json.load(file)
         fileCount = len(file_data["fileList"])
         if fileCount == 0:
@@ -36,8 +36,8 @@ def loadFileIndexServer():
                     }
                 )
 
-        file.seek(0)
-        json.dump(file_data, file, indent = 4)
+        # file.seek(0)
+        # json.dump(file_data, file, indent = 4)
         file.close()
 
     indexServerPayload = {
@@ -51,6 +51,9 @@ def loadFileIndexServer():
     print(response.split("|")[1])
 
 def addToFileIndex(file):
+    nameserver=Pyro4.locateNS(host = constants.fileIndexHost)
+    fileIndexUri = nameserver.lookup("example.fileIndex")
+    fileIndexServer = Pyro4.Proxy(fileIndexUri)
     indexServerPayload = {
         "peerUri" :peerName,
         "fileNameHash":file["fileNameHash"],
@@ -102,10 +105,16 @@ def updateFilePermJson(fileName, fileContentHash, timeStamp):
 
 
 def verifyUserPermissions(userId, fileName, checkWrite, checkRead, checkDelete):
+    print(fileName)
+    print(userId)
     with open('file_perm.json','r+') as file:
         file_data = json.load(file)
         for ind,fil in enumerate(file_data["fileList"]):
-            if fileName in fil["fileName"]:
+            
+            print(fileName)
+            print(fileName in fil["fileName"])
+            print(fileName in fil["fileName"] or fileName in fil["fileNameHash"])
+            if fileName in fil["fileName"] or fileName in fil["fileNameHash"]:
                 if checkWrite:
                     if userId in fil["createdBy"] or (userId in fil["userList"] and "rw" in fil["permission"]):
                         return True
@@ -126,28 +135,46 @@ def verifyUserPermissions(userId, fileName, checkWrite, checkRead, checkDelete):
 
         file.close()
 
-def createFile(userId, fileName, permissions, userList, timeStamp):
+def verifyPermissionForKey(userId, fileNameHash):
+    with open('file_perm.json','r+') as file:
+        file_data = json.load(file)
+        for ind,fil in enumerate(file_data["fileList"]):
+            if fileNameHash in fil["fileNameHash"]:
+                if userId in fil["createdBy"] or (userId in fil["userList"] and "rw" in fil["permission"]):
+                    return "1|You can access key"
+                else:
+                    return "0|You cannot access key"
+
+def createFile(userId, fileName, fileNameHash, permissions, userList, timeStamp):
     if os.path.isfile(fileName):
         return "0|File already exists"
     else:
-        writeToFilePermJson(userId, fileName, permissions, userList, str(hash(fileName)), "", timeStamp)
-        os.makedirs(os.path.dirname(fileName), exist_ok=True)
-        file = open(fileName, "w")
-        file.write("Please enter file content")
-        file.close()
-        return "1|File created successfully"
 
-def createDirectory(userId, fileName, timeStamp):
+        if ".txt" in fileName:
+            writeToFilePermJson(userId, fileName,  permissions, userList, fileNameHash, "", timeStamp)
+            os.makedirs(os.path.dirname(fileName), exist_ok=True)
+            file = open(fileName, "w")
+            file.write("Please enter file content")
+            file.close()
+            return "1|File created successfully"
+        else:
+            writeToFilePermJson(userId, fileName, permissions, userList, fileNameHash, "", timeStamp)
+            os.mkdir(fileName)
+            return "1|Directory created successfully"
+
+
+       
+
+def createDirectory(userId, fileName, fileNameHash, timeStamp):
     print(fileName)
     if os.path.isfile(fileName):
         return "0|File already exists"
     else:
-        writeToFilePermJson(userId, fileName, "", "", str(hash(fileName)), "", timeStamp)
+        writeToFilePermJson(userId, fileName, "", "", fileNameHash, "", timeStamp)
         os.mkdir(fileName)
         return "1|Directory created successfully"
 
 def writeFile(userId, fileName, fileContent, fileContentHash, timeStamp):
-
     if verifyUserPermissions(userId,fileName,True,False,False):
         file = open(fileName, "w")
         file.write(fileContent)
@@ -158,9 +185,9 @@ def writeFile(userId, fileName, fileContent, fileContentHash, timeStamp):
     else:
         return "0|Access denied"
 
-def readFile(userId, fileName):
+def readFile(userId, fileName, fileNameHash):
 
-    if verifyUserPermissions(userId,fileName,False,True,False):
+    if verifyUserPermissions(userId,fileNameHash,False,True,False):
         file = open(fileName, "r")
         fileContent = ""
         for line in file.readlines():
@@ -171,13 +198,13 @@ def readFile(userId, fileName):
     else:
         return "0|Access denied"
 
-def deleteFile(userId, fileName):
+def deleteFile(userId, fileNameHash):
 
-    if verifyUserPermissions(userId,fileName,False,False,True):
+    if verifyUserPermissions(userId,fileNameHash,False,False,True):
         with open('file_perm.json','r+') as file:
             file_data = json.load(file)
             for ind,fil in enumerate(file_data["fileList"]):
-                if fileName in fil["fileName"]:
+                if fileNameHash in fil["fileNameHash"]:
                     file_data["fileList"][ind]["fileDelete"] = 1
             file.seek(0)
             json.dump(file_data, file, indent = 4)
@@ -188,22 +215,32 @@ def deleteFile(userId, fileName):
 
 
 def listFilesInPath(userId, path):
+    nameserver=Pyro4.locateNS(host = constants.fileIndexHost)
+    fileIndexUri = nameserver.lookup("example.fileIndex")
+    fileIndexServer = Pyro4.Proxy(fileIndexUri)
     msg = "0|Files unavailable in this peer"
     filesList = os.listdir(path)
-    for i, file in enumerate(filesList):
-        if verifyUserPermissions(userId, file, False, True, False) and fileIndexServer.checkIfFileIsDeleted(str(hash(path+"/"+file))).split("|")[1] == "False":
-            if "1|" in msg:
-                msg = msg+","+file
-            else:
-                msg = "1|"+file
+    with open('file_perm.json','r') as file:
+        file_data = json.load(file)
+        for i, fileName in enumerate(filesList):
+            # and fileIndexServer.checkIfFileIsDeleted(str(hash(path+"/"+file))).split("|")[1] == "False"
+            if verifyUserPermissions(userId, fileName, False, True, False):
+                for ind,fil in enumerate(file_data["fileList"]):
+                    if fileName in fil["fileName"] and fileIndexServer.checkIfFileIsDeleted(fil["fileNameHash"]).split("|")[1] == "False":
+                        fileName = fileName + " " +fil["fileNameHash"]
+                        if "1|" in msg:
+                            msg = msg+","+fileName
+                        else:
+                            msg = "1|"+fileName
+        file.close()
     return msg
 
-def checkRestorePermission(userId, fileName):
-    if verifyUserPermissions(userId,fileName,False,False,True):
+def checkRestorePermission(userId, fileNameHash):
+    if verifyUserPermissions(userId,fileNameHash,False,False,True):
         with open('file_perm.json','r+') as file:
             file_data = json.load(file)
             for ind,fil in enumerate(file_data["fileList"]):
-                if fileName in fil["fileName"]:
+                if fileNameHash in fil["fileNameHash"]:
                     file_data["fileList"][ind]["fileDelete"] = 0
             file.seek(0)
             json.dump(file_data, file, indent = 4)
@@ -230,39 +267,38 @@ def deleteScheduler():
             file.close()
         time.sleep(900)
 
-@Pyro4.expose
+@Pyro4.behavior(instance_mode="percall")
 class Peer(object):
     loadFileIndexServer()
-    # deleteScheduler()
 
     def __init__(self):
         pass
-
+    @Pyro4.expose
     def fileRequestHandler(self, cliMsg):
 
         if "CREATE_FILE" in cliMsg:
-            _,userId, fileName, permissions, userList, timeStamp = cliMsg.split("|")
-            message = createFile(userId.strip("\n"), fileName.strip("\n"), permissions.strip("\n"), userList, timeStamp)
+            _,userId, fileName, fileNameHash, permissions, userList, timeStamp = cliMsg.split("|")
+            message = createFile(userId.strip("\n"), fileName.strip("\n"), fileNameHash.strip("\n"), permissions.strip("\n"), userList, timeStamp)
 
         elif "WRITE_FILE" in cliMsg:
             _,userId, fileName, fileContent, fileContentHash, timeStamp = cliMsg.split("|")
             message = writeFile(userId.strip("\n"), fileName.strip("\n"), fileContent, fileContentHash, timeStamp)
 
         elif "READ_FILE" in cliMsg:
-            _,userId, fileName = cliMsg.split("|")
-            message = readFile(userId, fileName)
+            _,userId, fileName, fileNameHash = cliMsg.split("|")
+            message = readFile(userId, fileName, fileNameHash)
 
         elif "DELETE_FILE" in cliMsg:
-            _,userId, fileName = cliMsg.split("|")
-            message = deleteFile(userId, fileName)
+            _,userId, fileNameHash = cliMsg.split("|")
+            message = deleteFile(userId, fileNameHash)
         
         elif "RESTORE_FILE" in cliMsg:
-            _,userId, fileName = cliMsg.split("|")
-            message = checkRestorePermission(userId, fileName)
+            _,userId, fileNameHash = cliMsg.split("|")
+            message = checkRestorePermission(userId, fileNameHash)
 
         elif "CREATE_DIRECTORY" in cliMsg:
-            _,userId, fileName, timeStamp = cliMsg.split("|")
-            message = createDirectory(userId.strip("\n"), fileName.strip("\n"), timeStamp)
+            _,userId, fileName, fileNameHash, timeStamp = cliMsg.split("|")
+            message = createDirectory(userId.strip("\n"), fileName.strip("\n"), fileNameHash.strip("\n"), timeStamp)
 
         elif "LIST_FILES" in cliMsg:
             _,userId, path = cliMsg.split("|")
@@ -272,6 +308,11 @@ class Peer(object):
             message = "0|Invalid option selected"
 
         return message
+
+    @Pyro4.expose
+    def verifyFilePermission(self, userId, fileNameHash):
+        return verifyPermissionForKey(userId, fileNameHash)
+
 
     
 
