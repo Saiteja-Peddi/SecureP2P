@@ -8,36 +8,18 @@ import constants
 from cryptography.fernet import Fernet
 import crypto
 
-auth_serv_pvt_key =  "-----BEGIN RSA PRIVATE KEY-----\nMIIBPAIBAAJBAJeBmlbGDCb9kQb0MPpdrwrHh1XU7VQ5pLdihSdqJQCl2ludW775\nHZLc/Qgkf0ssP9NPahPV5qX47UyRCVZTJI8CAwEAAQJAEodgJ8Ka093o8a/FmakB\nclEKpR2gVM+j7GWZIUPi4XyxlsbHoOZobtVa9ED8CpgNfnxTVZWJRsCFCrow5MmR\noQIjAL0TgDyWFRD2Es9QUo2q/L1FrLw4gx/Vq0vQtR/fD0DrSNECHwDNIdTBCwsq\nfSLNDk5F4YzDOY2a4+xB+EEpUTeI718CIjGbqzq6Of7AQYEpVu+anENgw4iC30x7\n+DylHtCk6tCiqvECHgfQAgpYIVS871Zf9Rs0O+gziPEdPSJGEjVAopzUgQIjAJaU\nbHgteJDH+n2KcSKnesi+9Ksq+AAdplWU89KaaKZ1J8w=\n-----END RSA PRIVATE KEY-----\n"
-
 
 def writeToUserListFile(userId, hashedPassword):
         with open('user_list.json','r+') as file:
             #Loading data into dictionary
             user_data = json.load(file)
-            
-            #Example for how to use and store keys in JSON file
-            # (pub,pvt) = rsa.newkeys(512)
-            # pubStr = rsa.PublicKey.save_pkcs1(pub)
-            # pubStr = pubStr.decode()
-            # pvtStr = rsa.PrivateKey.save_pkcs1(pvt)
-            # pvtStr = pvtStr.decode()
-            # message = 'hello Bob!'.encode()
-            # crypto = rsa.encrypt(message, rsa.PublicKey.load_pkcs1(pubStr))
-            # message = rsa.decrypt(crypto, rsa.PrivateKey.load_pkcs1(pvtStr))
-            # print(message.decode())
-
-            (encKey, decKey) = rsa.newkeys(512)
-            encKey = rsa.PublicKey.save_pkcs1(encKey)
-            decKey = rsa.PrivateKey.save_pkcs1(decKey)
-            fernetKey = Fernet.generate_key()
-
+            fernetKey = str(Fernet.generate_key().decode())
+            fernetKey = fernetKey.lstrip("b'")
+            fernetKey = fernetKey.rstrip("'")
             user = {
                 "id":userId,
                 "pwd":hashedPassword,
-                "pvt_key":encKey.decode(),
-                "pub_key":decKey.decode(),
-                "fernetKey": str(fernetKey)
+                "fernetKey": fernetKey
             }
             user_data['usersList'].append(user)
 
@@ -83,6 +65,8 @@ def loginUser(userId, hashedPassword):
     else:
         return "0|Invalid credentials"
 
+
+
 @Pyro4.expose
 class AuthServer(object):
 
@@ -90,9 +74,8 @@ class AuthServer(object):
         pass
 
     def authRequestHandler(self, cliMsg):
-        print(type(cliMsg))
-        cliMsg = crypto.rsaDecryption(json.dumps(cliMsg).encode(), auth_serv_pvt_key)
         print(cliMsg)
+        cliMsg = crypto.fernetDecryption(cliMsg,constants.authServerEncKey)
         if "CREATE_USER" in cliMsg:
             userId,hashedPassword = cliMsg.split("|")[1:]
             message = createUser(userId, hashedPassword)

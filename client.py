@@ -16,22 +16,8 @@ sys.excepthook = Pyro4.util.excepthook
 
 
 def callAuthServer(authServer, clientRequest):
-    authPubKey = str(constants.auth_serv_pub_key)
-    encryptedCliRequest = crypto.rsaEncryption(clientRequest.encode(), authPubKey)
-    
-    strEnc = str(encryptedCliRequest)
-
-    print(encryptedCliRequest)
-    print(type(encryptedCliRequest))
-    print("---------------")
-    print(strEnc)
-    print(type(strEnc))
-
-    authPvtKey = str(constants.auth_serv_pvt_key)
-    decryptedCliRequest = crypto.rsaDecryption( encryptedCliRequest, authPvtKey)
-    
-    
-    serverResponse = authServer.authRequestHandler(encryptedCliRequest)
+    clientRequest = crypto.fernetEncryption(clientRequest, constants.authServerEncKey)
+    serverResponse = authServer.authRequestHandler(clientRequest)
     if serverResponse.split("|")[0] == "1":
         print(serverResponse.split("|")[1])
         return True
@@ -178,7 +164,7 @@ def main():
         elif "goindir" in cliCommand and checkCommandInput(cliCommand,False):
             _,fileName = cliCommand.split("|")
             if directoryNamePattern.fullmatch(fileName.strip("\n")):
-                cwdUpdateFlag = fileCli.goInsideDirectory(dbDir+cwd+fileName.strip("\n"))
+                cwdUpdateFlag = fileCli.goInsideDirectory(userId, dbDir+cwd+fileName.strip("\n"))
                 if cwdUpdateFlag:
                     cwd = cwd +fileName.strip("\n")+"/"
                 else:
@@ -190,9 +176,15 @@ def main():
             if "/" == cwd:
                 print("You are in root folder")
             else:
-                cwdList = cwd.split("/").pop()
-                cwd = "/" + "/".join(cwdList)
+                cwdList = cwd.strip("/").split("/")
+                cwd = "/" + "/".join(cwdList[:-1])
                 
+        elif "renamedir" in cliCommand and checkCommandInput(cliCommand,False):
+            _,fileName = cliCommand.split("|")
+            if directoryNamePattern.fullmatch(fileName.strip("\n")):
+                fileCli.updateDirectoryName(userId, dbDir+cwd+fileName.strip("\n"), dbDir+cwd)
+            else:
+                print("Invalid filename entered")
 
         elif "lscurr" in cliCommand:
             fileCli.listFilesInCurrentPath(userId ,dbDir+cwd.rstrip("/"))
@@ -200,6 +192,7 @@ def main():
         elif "goroot" in cliCommand:
             cwd = "/"
             print("Current working directory updated to root folder")
+
 
         elif "exit" in cliCommand:
             sys.exit()

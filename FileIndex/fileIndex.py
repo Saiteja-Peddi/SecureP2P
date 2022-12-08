@@ -5,6 +5,8 @@ import datetime
 import sys
 sys.path.append("..")
 import constants
+import crypto
+
 
 index = {
     'fileInd':[
@@ -69,12 +71,12 @@ def addToFileIndex(fileObj):
 
 
 
-def verifyFileAvailability(jsonObject):
+def verifyFileAvailability(fileNameHash):
     msg = "1|File can be created"
     for ind,peerContent in enumerate(index["fileInd"]):
         if len(peerContent["index"]) != 0:
             for j,fil in enumerate(peerContent["index"]):
-                if jsonObject["fileNameHash"] in fil["fileNameHash"]:
+                if fileNameHash in fil["fileNameHash"]:
                         msg = "0|File already exists"
     
     return msg
@@ -92,7 +94,9 @@ def getPeerURI(requestedURI, writeMethodFlag, fileNameHash):
         if writeMethodFlag:
             for j,fil in enumerate(peerContent["index"]):
                 if fil["fileNameHash"] == fileNameHash:
-                    uri = "|"+peerContent["peer"]+","+peerContent["nsHostIp"]
+                    uri = uri + peerContent["peer"]+","+peerContent["nsHostIp"]
+                    if not ind == len(index["fileInd"])-1:
+                        uri = uri + "|"
         else:
             if peerContent["fileCount"] < fileCount and peerContent["peer"] != requestedURI:
                 fileCount = peerContent["fileCount"]
@@ -119,10 +123,24 @@ def getReadPeerURI(fileNameHash):
     else:
         return uri
 
+def getDeletePeersURI(fileNameHash):
+    uri =""
+    for ind,peerContent in enumerate(index["fileInd"]):
+        for j,fil in enumerate(peerContent["index"]):
+            if fil["fileNameHash"] == fileNameHash:
+                uri = uri + peerContent["peer"]+","+peerContent["nsHostIp"]
+                if not ind == len(index["fileInd"])-1:
+                    uri += "|"
+    
+    if uri == "":
+        return "0|Unable to find a peer"
+    else:
+        return uri
+
 def getAllAvailablePeersUri():
     peerList = ""
     for ind,peerContent in enumerate(index["fileInd"]):
-        peerList = peerContent["peer"]+","+peerContent["nsHostIp"]
+        peerList = peerList + peerContent["peer"]+","+peerContent["nsHostIp"]
         if not ind == len(index["fileInd"])-1:
             peerList += "|"
     return peerList
@@ -153,10 +171,41 @@ def checkDeleteFlag(fileNameHash):
 def storeKey(fileNameHash, key):
     keys[fileNameHash] = key
     loadToKeysFile()
+    return "1|Key stored successfully"
 
 def getKey(fileNameHash):
-    print(fileNameHash)
     return keys[fileNameHash]
+
+def checkLock(fileNameHash):
+    msg = "0|Invalid Filename"
+    for ind,peerContent in enumerate(index["fileInd"]):
+        for j,fil in enumerate(peerContent["index"]):
+            if fil["fileNameHash"] == fileNameHash:
+                if fil["fileLock"] == True:
+                    return "0|File can't be accessed"
+                else:
+                    return "1|File can be accessed"
+    return msg
+
+
+def updateFileNameHash(oldFileNameHash, newFileNameHash, curr_time):
+    for ind,peerContent in enumerate(index["fileInd"]):
+        for j,fil in enumerate(peerContent["index"]):
+            if fil["fileNameHash"] == oldFileNameHash:
+                index["fileInd"][ind]["index"][j]["fileNameHash"] = newFileNameHash
+                index["fileInd"][ind]["index"][j]["timeStamp"] = curr_time
+    keys[newFileNameHash] = keys[oldFileNameHash]
+    del keys[oldFileNameHash]
+    loadToKeysFile()
+
+def removeDeletedFilesData():
+    for ind,peerContent in enumerate(index["fileInd"]):
+        for j,fil in enumerate(peerContent["index"]):
+            if fil["fileDelete"] == True:
+                fileNameHash = fil["fileNameHash"]
+                del keys[fileNameHash]
+                del index["fileInd"]["index"][j]
+    return "1|Permanently removed sofar deleted files"
 
 @Pyro4.behavior(instance_mode="percall")
 class FileIndex(object):
@@ -167,62 +216,106 @@ class FileIndex(object):
 
     @Pyro4.expose
     def loadPeerFileIndex(self, jsonObject):
-        return writeToFileIndex(jsonObject)
+        jsonObject = crypto.fernetDecryption(jsonObject, constants.fileIndexEncKey)
+        jsonObject = eval(jsonObject)
+        response = writeToFileIndex(jsonObject)
+        return crypto.fernetEncryption(response, constants.peerCommEncKey)
 
     @Pyro4.expose
     def addToFileIndexJson(self, requestObj):
-        return addToFileIndex(requestObj)
+        requestObj = crypto.fernetDecryption(requestObj, constants.fileIndexEncKey)
+        requestObj = eval(requestObj)
+        response = addToFileIndex(requestObj)
+        return crypto.fernetEncryption(response, constants.peerCommEncKey)
 
     @Pyro4.expose
-    def checkFileAvailability(self, jsonObject):
-        return verifyFileAvailability(jsonObject)
+    def checkFileAvailability(self, fileNameHash):
+        response = verifyFileAvailability(fileNameHash)
+        return crypto.fernetEncryption(response, constants.peerCommEncKey)
     
-    @Pyro4.expose
-    def getAvailablePeerURI(self, requestedURI):
-        return getPeerURI(requestedURI, False, "")
+    # @Pyro4.expose
+    # def getAvailablePeerURI(self, requestedURI):
+    #     return getPeerURI(requestedURI, False, "")
     
     @Pyro4.expose
     def lockAndGetPeerURI(self, fileNameHash):
         lockUnlockFileWrite(fileNameHash, True)
-        return getPeerURI("", True, fileNameHash)
-    
-    @Pyro4.expose
-    def getPeerUriForRead(self, fileNameHash):
-        return getReadPeerURI(fileNameHash)
+        response = getPeerURI("", True, fileNameHash)
+        return crypto.fernetEncryption(response, constants.peerCommEncKey)
 
     @Pyro4.expose
-    def unlockFileWrite(self, fileNameHash, fileContentHash, timeStamp):
+    def getPeerUriForRead(self, fileNameHash):
+        response = getReadPeerURI(fileNameHash)
+        return crypto.fernetEncryption(response, constants.peerCommEncKey)
+
+    @Pyro4.expose
+    def unlockFileWrite(self, request):
+        request = crypto.fernetDecryption(request, constants.fileIndexEncKey)
+        fileNameHash, fileContentHash, timeStamp = request.split("$")
         updateFileIndex(fileNameHash, fileContentHash, timeStamp)
         lockUnlockFileWrite(fileNameHash, False)
 
     @Pyro4.expose
     def performFileDelete(self, fileNameHash):
-        return updateDeleteFlag(fileNameHash, True)
+        response = updateDeleteFlag(fileNameHash, True)
+        return crypto.fernetEncryption(response, constants.peerCommEncKey)
 
     @Pyro4.expose
     def performFileRestore(self, fileNameHash):
-        return updateDeleteFlag(fileNameHash,False)
+        response = updateDeleteFlag(fileNameHash,False)
+        return crypto.fernetEncryption(response, constants.peerCommEncKey)
 
     @Pyro4.expose
     def getPeerURIToVerifyDelOrRestorePerm(self, fileNameHash):
-        return getReadPeerURI(fileNameHash)
+        response = getDeletePeersURI(fileNameHash)
+        return crypto.fernetEncryption(response, constants.peerCommEncKey)
 
     @Pyro4.expose
     def getAllPeers(self):
-        return getAllAvailablePeersUri()
+        response = getAllAvailablePeersUri()
+        return crypto.fernetEncryption(response, constants.peerCommEncKey)
     
     @Pyro4.expose
     def checkIfFileIsDeleted(self, fileNameHash):
-        return checkDeleteFlag(fileNameHash)
+        response = checkDeleteFlag(fileNameHash)
+        return crypto.fernetEncryption(response, constants.peerCommEncKey)
 
     @Pyro4.expose
-    def storeEncryptionKey(self, fileNameHash, key):
-        return storeKey(fileNameHash, key)
+    def storeEncryptionKey(self, request):
+        request = crypto.fernetDecryption(request, constants.fileIndexEncKey)
+        print(request)
+        fileNameHash, key = request.split(" ")
+        response = storeKey(fileNameHash, key)
+        return crypto.fernetEncryption(response, constants.peerCommEncKey)
     
     @Pyro4.expose
     def getEncryptionKey(self, fileNameHash):
-        return getKey(fileNameHash)
+        response = getKey(fileNameHash)
+        return crypto.fernetEncryption(response, constants.peerCommEncKey)
 
+    @Pyro4.expose
+    def checkFileLock(self, fileNameHash):
+        response = checkLock(fileNameHash)
+        return crypto.fernetEncryption(response, constants.peerCommEncKey)
+
+    @Pyro4.expose
+    def lockFileRenameAndGetPeer(self, fileNameHash):
+        lockUnlockFileWrite(fileNameHash, True)
+        response = getPeerURI("", True, fileNameHash)
+        return crypto.fernetEncryption(response, constants.peerCommEncKey)
+
+    
+    @Pyro4.expose
+    def unlockFileRename(self, request):
+        request = crypto.fernetDecryption(request, constants.fileIndexEncKey)
+        oldFileNameHash, newFileNameHash, timeStamp = request.split("$")
+        updateFileNameHash(oldFileNameHash, newFileNameHash, timeStamp)
+        lockUnlockFileWrite(newFileNameHash, False)
+
+    @Pyro4.expose
+    def permanentDelete(self):
+        response = removeDeletedFilesData()
+        return crypto.fernetEncryption(response, constants.peerCommEncKey)
 
 def main():
     Pyro4.Daemon.serveSimple(

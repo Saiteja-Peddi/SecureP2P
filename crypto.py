@@ -4,7 +4,6 @@ import constants
 
 
 def fernetEncryption(encryptingText, key):
-    print("Fernet encryption")
     # key = key.lstrip("\"")
     # key = key.rstrip("\"")
     f = Fernet(key)
@@ -15,7 +14,6 @@ def fernetEncryption(encryptingText, key):
     return str(response)
 
 def fernetDecryption(decryptingText, key):
-    print("Fernet decryption")
     f = Fernet(key)
     response = f.decrypt(bytes(decryptingText, encoding='utf8'))
     return response.decode()
