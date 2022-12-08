@@ -154,7 +154,8 @@ def createFileOrDirectory(fileName, permissions, userId, path, directoryFlag):
                 print("Unable to find peers in the network. File can be created only locally")
                 print("\n----------------------------------------")
             else:
-                callPeer(peer, clientRequest)
+                for i,peer in enumerate(peer.split("|")):
+                    callPeer(peer, clientRequest)
         else:
             callPeer(constants.peerName+","+constants.pyroHost, clientRequest)
 
