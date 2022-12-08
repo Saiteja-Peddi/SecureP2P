@@ -114,10 +114,6 @@ def verifyUserPermissions(userId, fileName, checkWrite, checkRead, checkDelete):
     with open('file_perm.json','r+') as file:
         file_data = json.load(file)
         for ind,fil in enumerate(file_data["fileList"]):
-            
-            print(fileName)
-            print(fileName in fil["fileName"])
-            print(fileName in fil["fileName"] or fileName in fil["fileNameHash"])
             if fileName in fil["fileName"] or fileName in fil["fileNameHash"]:
                 if checkWrite:
                     if userId in fil["createdBy"] or (userId in fil["userList"] and "rw" in fil["permission"]):
@@ -167,6 +163,15 @@ def createFile(userId, fileName, fileNameHash, fileContent, permissions, userLis
             return "1|Directory created successfully"
 
 
+def checkFileAvailability(fileNameHash):
+    msg ="1|File available"
+    with open('file_perm.json','r+') as file:
+        file_data = json.load(file)
+        for ind,fil in enumerate(file_data["fileList"]):
+            if fileNameHash in fil["fileNameHash"]:
+                msg = "0|File already exists"
+        file.close()
+    return msg
        
 
 def createDirectory(userId, fileName, fileNameHash, timeStamp):
@@ -335,6 +340,11 @@ class Peer(object):
             message = verifyPermissionForKey(userId, fileNameHash, reqPerm)
         elif "PERMANENT_DELETE" in cliMsg:
             message = permanentDelete()
+        
+        elif "FILE_AVAILABLE" in cliMsg:
+            _, fileName = cliMsg.split("|")
+            message = checkFileAvailability(fileName)
+
         else:
             message = "0|Invalid option selected"
 

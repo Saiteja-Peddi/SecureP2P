@@ -84,6 +84,31 @@ def verifyFileAvailability(fileNameHash, pathChange = False):
     else:
         return False
 
+
+def verifyFileAvailabilityForCreate(fileName):
+    peer = fileIndexServer.getAllPeers()
+    peer = crypto.fernetDecryption(peer, constants.peerCommEncKey)
+    fileAvailableCount = 0
+    clientRequest = "FILE_AVAILABLE|"+fileName
+    if peer.split("|")[0] == "0":
+        print("\n----------------------------------------")
+        print("Unable to find peers in the network. File can be created only locally")
+        print("\n----------------------------------------")
+    else:
+        for i,peer in enumerate(peer.split("|")):
+            response = callPeer(peer, clientRequest, False)
+            print(response)
+            if response:
+                fileAvailableCount = fileAvailableCount + 1
+    print(len(peer.split("|")))
+    print(fileAvailableCount)
+    if fileAvailableCount == len(peer.split("|")):
+        return True
+    else:
+        print("File already exist")
+        
+
+
 def verifyFileLock(fileNameHash):
     response = fileIndexServer.checkFileLock(fileNameHash)
     response = crypto.fernetDecryption(response, constants.peerCommEncKey)
@@ -102,7 +127,7 @@ def createFileOrDirectory(fileName, permissions, userId, path, directoryFlag):
     1 -> Create Locally
     2 -> Create Everywhere
     """
-    if verifyFileAvailability(str(hash(fileName))):
+    if verifyFileAvailabilityForCreate(str(hash(fileName))):
         
         if "p" not in permissions:
             print("Please enter userlist who has access to this file\n")

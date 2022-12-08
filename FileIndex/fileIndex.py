@@ -35,6 +35,9 @@ def updateFileIndex(fileNameHash, fileContentHash, timeStamp):
     
 
 def writeToFileIndex(jsonObject):
+    for ind, peerContent in enumerate(index["fileInd"]):
+        if peerContent["nsHostIp"] == jsonObject["nsHostIp"]:
+            del index['fileInd'][ind]
     fileIndex = {
             "id":uuid.uuid4().int,
             "peer":jsonObject["peerUri"],
@@ -62,11 +65,15 @@ def addToFileIndex(fileObj):
         "fileLock":fileObj["fileLock"],
         "fileDelete": False
     }
-
+    appendFlag = True
     for ind, peerContent in enumerate(index["fileInd"]):
         if peerContent["peer"] == fileObj["peerUri"]:
-            index["fileInd"][ind]["fileCount"] = peerContent["fileCount"] + 1
-            index["fileInd"][ind]["index"].append(indexObj)
+            for j,fil in enumerate(peerContent["index"]):
+                if fileObj["fileNameHash"] in fil["fileNameHash"]:
+                    appendFlag = False
+            if appendFlag:
+                index["fileInd"][ind]["fileCount"] = peerContent["fileCount"] + 1
+                index["fileInd"][ind]["index"].append(indexObj)
     return "1|Successfully updated file index"
 
 
@@ -78,7 +85,6 @@ def verifyFileAvailability(fileNameHash):
             for j,fil in enumerate(peerContent["index"]):
                 if fileNameHash in fil["fileNameHash"]:
                         msg = "0|File already exists"
-    
     return msg
 
 def lockUnlockFileWrite(fileNameHash, flag):
