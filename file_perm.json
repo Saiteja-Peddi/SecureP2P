@@ -1,14 +1,14 @@
 {
     "fileList": [
         {
-            "fileName": "./db/f1.txt",
-            "fileNameHash": "381243667671053599",
+            "fileName": "./db/hzr.txt",
+            "fileNameHash": "6784379551678210313",
             "fileContentHash": "",
-            "timeStamp": "2022-12-05 20:19:41.571539",
-            "permission": "r",
-            "createdBy": "prasanna",
+            "timeStamp": "2022-12-08 04:44:43.782570",
+            "permission": "p",
+            "createdBy": "sai",
             "userList": [
-                "sai"
+                ""
             ],
             "fileDelete": 0
         }

@@ -7,16 +7,16 @@ import Pyro4
 import Pyro4.util
 import constants
 import re
-
+import crypto
 
 dbDir = "./db"
-fileNamePattern = re.compile("^([A-Za-z0-9])+(.txt)?$")
+fileNamePattern = re.compile("^([A-Za-z0-9])+(.txt)$")
 directoryNamePattern = re.compile("^([A-Za-z0-9])+$")
 sys.excepthook = Pyro4.util.excepthook
 
 
 def callAuthServer(authServer, clientRequest):
-    
+    clientRequest = crypto.fernetEncryption(clientRequest, constants.authServerEncKey)
     serverResponse = authServer.authRequestHandler(clientRequest)
     if serverResponse.split("|")[0] == "1":
         print(serverResponse.split("|")[1])
@@ -65,12 +65,13 @@ def provideFileOperationsMenu():
     Command Menu:
     1. Create a file: create|<filename>|<permissions>
         Permission: r = read, rw = read & write, p = private
-        Supports only directory and .txt file.
+        Supports only .txt file.
     2. Read a file: read|<filename>
     3. Write to a file: write|<filename>
     4. Delete a file: rmfile|<filename>
     5. Restore a file: restore|<filename>
-    6. Create a directory: makedir|<directoryname>
+    6. Create a directory: makedir|<directoryname>|<permissions>
+        Permission: r = specified users, p = private
     7. Go inside a directory: goindir|<directoryname> 
     8. Go back from a directory: gobackdir   
     9. Go to root directory: goroot
@@ -129,19 +130,18 @@ def main():
         cliCommand = sys.stdin.readline()
         if "create" in cliCommand and checkCommandInput(cliCommand,True):
             _,fileName,permissions = cliCommand.split("|")
-            if re.fullmatch(fileNamePattern, fileName):
-                fileCli.createFile(dbDir+cwd+fileName.strip("\n"), permissions.strip("\n"), userId.strip("\n"))
+            if re.fullmatch(fileNamePattern, fileName) and permissions.strip("\n") in ["r", "rw", "p"]:
+                fileCli.createFileOrDirectory(dbDir+cwd+fileName.strip("\n"), permissions.strip("\n"), userId.strip("\n"), dbDir+cwd, False)
             else:
-                print("Invalid file type")
+                print("Invalid file type or permissions")
             
-
         elif "read" in cliCommand and checkCommandInput(cliCommand,False):
             _,fileName = cliCommand.split("|")
-            fileCli.readFile(dbDir+cwd+fileName.strip("\n"), userId.strip("\n"))
+            fileCli.readFile(dbDir+cwd+fileName.strip("\n"), userId.strip("\n"), dbDir+cwd)
 
         elif "write" in cliCommand and checkCommandInput(cliCommand,False):
             _,fileName = cliCommand.split("|")
-            fileCli.writeFile(dbDir+cwd+fileName.strip("\n"), userId.strip("\n"))
+            fileCli.writeFile(dbDir+cwd+fileName.strip("\n"), userId.strip("\n"), dbDir+cwd)
 
         elif "rmfile" in cliCommand and checkCommandInput(cliCommand,False):
             _,fileName = cliCommand.split("|")
@@ -154,17 +154,17 @@ def main():
             _,fileName = cliCommand.split("|")
             fileCli.restoreFile(dbDir+cwd+fileName.strip("\n"), userId.strip("\n"))
 
-        elif "makedir"in cliCommand and checkCommandInput(cliCommand,False):
-            _,fileName = cliCommand.split("|")
-            if directoryNamePattern.fullmatch(fileName.strip("\n")):
-                fileCli.createDirectory(dbDir+cwd+fileName.strip("\n"), userId.strip("\n"))
+        elif "makedir"in cliCommand and checkCommandInput(cliCommand,True):
+            _,fileName,permissions = cliCommand.split("|")
+            if directoryNamePattern.fullmatch(fileName.strip("\n")) and permissions.strip("\n") in ["r", "p"]:
+                fileCli.createFileOrDirectory(dbDir+cwd+fileName.strip("\n"), permissions.strip("\n"), userId.strip("\n"), dbDir+cwd, True)
             else:
-                print("Invalid file type")
+                print("Invalid file type or permissions")
 
         elif "goindir" in cliCommand and checkCommandInput(cliCommand,False):
             _,fileName = cliCommand.split("|")
             if directoryNamePattern.fullmatch(fileName.strip("\n")):
-                cwdUpdateFlag = fileCli.goInsideDirectory(dbDir+cwd+fileName.strip("\n"))
+                cwdUpdateFlag = fileCli.goInsideDirectory(userId, dbDir+cwd+fileName.strip("\n"))
                 if cwdUpdateFlag:
                     cwd = cwd +fileName.strip("\n")+"/"
                 else:
@@ -176,9 +176,15 @@ def main():
             if "/" == cwd:
                 print("You are in root folder")
             else:
-                cwdList = cwd.split("/").pop()
-                cwd = "/" + "/".join(cwdList)
+                cwdList = cwd.strip("/").split("/")
+                cwd = "/" + "/".join(cwdList[:-1])
                 
+        elif "renamedir" in cliCommand and checkCommandInput(cliCommand,False):
+            _,fileName = cliCommand.split("|")
+            if directoryNamePattern.fullmatch(fileName.strip("\n")):
+                fileCli.updateDirectoryName(userId, dbDir+cwd+fileName.strip("\n"), dbDir+cwd)
+            else:
+                print("Invalid filename entered")
 
         elif "lscurr" in cliCommand:
             fileCli.listFilesInCurrentPath(userId ,dbDir+cwd.rstrip("/"))
@@ -186,6 +192,7 @@ def main():
         elif "goroot" in cliCommand:
             cwd = "/"
             print("Current working directory updated to root folder")
+
 
         elif "exit" in cliCommand:
             sys.exit()

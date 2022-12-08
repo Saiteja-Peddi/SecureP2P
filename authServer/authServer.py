@@ -6,33 +6,19 @@ import sys
 sys.path.append("..")
 import constants
 from cryptography.fernet import Fernet
+import crypto
+
 
 def writeToUserListFile(userId, hashedPassword):
         with open('user_list.json','r+') as file:
             #Loading data into dictionary
             user_data = json.load(file)
-            
-            #Example for how to use and store keys in JSON file
-            # (pub,pvt) = rsa.newkeys(512)
-            # pubStr = rsa.PublicKey.save_pkcs1(pub)
-            # pubStr = pubStr.decode()
-            # pvtStr = rsa.PrivateKey.save_pkcs1(pvt)
-            # pvtStr = pvtStr.decode()
-            # message = 'hello Bob!'.encode()
-            # crypto = rsa.encrypt(message, rsa.PublicKey.load_pkcs1(pubStr))
-            # message = rsa.decrypt(crypto, rsa.PrivateKey.load_pkcs1(pvtStr))
-            # print(message.decode())
-
-            (encKey, decKey) = rsa.newkeys(512)
-            encKey = rsa.PublicKey.save_pkcs1(encKey)
-            decKey = rsa.PrivateKey.save_pkcs1(decKey)
-            fernetKey = Fernet.generate_key()
-
+            fernetKey = str(Fernet.generate_key().decode())
+            fernetKey = fernetKey.lstrip("b'")
+            fernetKey = fernetKey.rstrip("'")
             user = {
                 "id":userId,
                 "pwd":hashedPassword,
-                "pvt_key":encKey.decode(),
-                "pub_key":decKey.decode(),
                 "fernetKey": fernetKey
             }
             user_data['usersList'].append(user)
@@ -79,6 +65,8 @@ def loginUser(userId, hashedPassword):
     else:
         return "0|Invalid credentials"
 
+
+
 @Pyro4.expose
 class AuthServer(object):
 
@@ -86,6 +74,8 @@ class AuthServer(object):
         pass
 
     def authRequestHandler(self, cliMsg):
+        print(cliMsg)
+        cliMsg = crypto.fernetDecryption(cliMsg,constants.authServerEncKey)
         if "CREATE_USER" in cliMsg:
             userId,hashedPassword = cliMsg.split("|")[1:]
             message = createUser(userId, hashedPassword)
