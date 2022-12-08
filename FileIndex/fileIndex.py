@@ -207,7 +207,7 @@ def removeDeletedFilesData():
             if fil["fileDelete"] == True:
                 fileNameHash = fil["fileNameHash"]
                 keys[fileNameHash] = ""
-                index["fileInd"]["index"] = {
+                index["fileInd"][ind]["index"][j] = {
                     "fileNameHash":"",
                     "timeStamp":"",
                     "fileContentHash":"",
