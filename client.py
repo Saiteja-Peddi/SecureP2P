@@ -73,10 +73,11 @@ def provideFileOperationsMenu():
     6. Create a directory: makedir|<directoryname>|<permissions>
         Permission: r = specified users, p = private
     7. Go inside a directory: goindir|<directoryname> 
-    8. Go back from a directory: gobackdir   
-    9. Go to root directory: goroot
-    10. List current working directory files: lscurr
-    11. Exit from application: exit
+    8. Rename directory: renamedir|<directoryname>
+    9. Go back from a directory: gobackdir   
+    10. Go to root directory: goroot
+    11. List current working directory files: lscurr
+    12. Exit from application: exit
     """
     #Implementation
     #1. For directory at clientside we maintain current working path all the time till the client logs out of the system.
