@@ -116,7 +116,10 @@ def getReadPeerURI(fileNameHash):
     for ind,peerContent in enumerate(index["fileInd"]):
         for j,fil in enumerate(peerContent["index"]):
             if fil["fileNameHash"] == fileNameHash:
-                uri = peerContent["peer"]+","+peerContent["nsHostIp"]
+                if tempTimeStamp < datetime.datetime.strptime(str(fil["timeStamp"]), '%Y-%m-%d %H:%M:%S.%f'):
+                    uri = peerContent["peer"]+","+peerContent["nsHostIp"]
+                    tempTimeStamp = datetime.datetime.strptime(str(fil["timeStamp"]), '%Y-%m-%d %H:%M:%S.%f')
+                # uri = peerContent["peer"]+","+peerContent["nsHostIp"]
     
     if uri == "":
         return "0|Unable to find a peer"
@@ -203,8 +206,15 @@ def removeDeletedFilesData():
         for j,fil in enumerate(peerContent["index"]):
             if fil["fileDelete"] == True:
                 fileNameHash = fil["fileNameHash"]
-                del keys[fileNameHash]
-                del index["fileInd"]["index"][j]
+                keys[fileNameHash] = ""
+                index["fileInd"]["index"] = {
+                    "fileNameHash":"",
+                    "timeStamp":"",
+                    "fileContentHash":"",
+                    "fileLock":"",
+                    "fileDelete": False
+                }
+                loadToKeysFile()
     return "1|Permanently removed sofar deleted files"
 
 @Pyro4.behavior(instance_mode="percall")

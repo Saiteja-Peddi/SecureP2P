@@ -11,15 +11,7 @@ schedulerFlag = False
 #To start name server enter below command in the shell
 # python -m Pyro4.naming -n <your_hostname>
 
-filePermissions = {
-    'fileList' : []
-}
 
-
-with open('filePermissions.txt', 'w') as data:
-    data.seek(0)
-    data.write(str(filePermissions))
-    data.close()
 
 
 def loadFileIndexServer():
@@ -35,15 +27,16 @@ def loadFileIndexServer():
             index = []
         else:
             for ind,fil in enumerate(file_data["fileList"]):
-                index.append(
-                    {
-                        "fileNameHash":fil["fileNameHash"],
-                        "timeStamp":fil["timeStamp"],
-                        "fileContentHash":fil["fileContentHash"],
-                        "fileLock":False,
-                        "fileDelete": False if fil["fileDelete"] == 0 else True
-                    }
-                )
+                if (not fil["fileNameHash"] == "") or (not fil["fileName"] == ""):
+                    index.append(
+                        {
+                            "fileNameHash":fil["fileNameHash"],
+                            "timeStamp":fil["timeStamp"],
+                            "fileContentHash":fil["fileContentHash"],
+                            "fileLock":False,
+                            "fileDelete": False if fil["fileDelete"] == 0 else True
+                        }
+                    )
 
         # file.seek(0)
         # json.dump(file_data, file, indent = 4)
@@ -286,9 +279,11 @@ def permanentDelete():
                 if os.path.isfile(fil["fileName"]):
                     print(fil["fileName"])
                     os.remove(fil["fileName"])
-                    print(type(file_data["fileList"]))
-                    print(type(ind))
-                    file_data["fileList"].pop(int(ind))
+                    file_data["fileList"][ind]["fileName"] = ""
+                    file_data["fileList"][ind]["fileNameHash"] = ""
+                    file_data["fileList"][ind]["permission"] = ""
+                    file_data["fileList"][ind]["createdBy"] = ""
+                    file_data["fileList"][ind]["userList"] = []
         file.seek(0)
         json.dump(file_data, file, indent = 4)
         file.close()
