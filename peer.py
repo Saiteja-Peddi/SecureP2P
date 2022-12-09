@@ -168,10 +168,10 @@ def checkFileAvailability(fileNameHash):
     with open('file_perm.json','r+') as file:
         file_data = json.load(file)
         for ind,fil in enumerate(file_data["fileList"]):
-            if fileNameHash in fil["fileNameHash"]:
+            if fileNameHash == fil["fileNameHash"]:
                 msg = "0|File already exists"
         file.close()
-    return msg
+        return msg
        
 
 def createDirectory(userId, fileName, fileNameHash, timeStamp):

@@ -23,7 +23,7 @@ fileIndexServer = Pyro4.Proxy(fileIndexUri)
 
 
 def createHash(fileName):
-    hash = hashlib.sha256("saiteja".encode()).hexdigest()
+    hash = hashlib.sha256(fileName.encode()).hexdigest()
     return hash
 
 def callPeer(peer,clientRequest, printResponse = True):
@@ -118,7 +118,7 @@ def verifyFileAvailabilityForCreate(fileName):
 def verifyFileLock(fileNameHash):
     response = fileIndexServer.checkFileLock(fileNameHash)
     response = crypto.fernetDecryption(response, constants.peerCommEncKey)
-    if response.split("|")[0] == 0:
+    if response.split("|")[0] == "0":
         print(response.split("|")[1])
         return False
     else:
@@ -193,67 +193,77 @@ def createFileOrDirectory(fileName, permissions, userId, path, directoryFlag):
 
 
 def writeFile(fileName, userId, path):
-    if verifyFileLock(createHash(fileName)):
-        peer = fileIndexServer.getPeerUriForRead(createHash(fileName))
-        peer = crypto.fernetDecryption(peer, constants.peerCommEncKey)
-        if peer.split("|")[0] == "0":
-            print(peer.split("|")[1])
-        else:
-            permissionReq = "VERIFY_PERMISSION|"+userId+"|"+createHash(fileName)+"|"+"w"
-            response = callPeer(peer, permissionReq)
-            # response = peerObj.verifyFilePermission(userId, createHash(fileName))
-            if response:
-                peer = fileIndexServer.lockAndGetPeerURI(createHash(fileName))
-                peer = crypto.fernetDecryption(peer, constants.peerCommEncKey)
-                fileText = ""
-                print("Please enter file content\n")
-                print("Note: After finishing enter [end] in new line")
-                print("-------------------------------------------------------\n")
+    response = fileIndexServer.checkIfFileIsDeleted(createHash(fileName))
+    response = crypto.fernetDecryption(response, constants.peerCommEncKey)
+    if response.split("|")[1] == "False":
+        if verifyFileLock(createHash(fileName)):
+            peer = fileIndexServer.getPeerUriForRead(createHash(fileName))
+            peer = crypto.fernetDecryption(peer, constants.peerCommEncKey)
+            if peer.split("|")[0] == "0":
+                print(peer.split("|")[1])
+            else:
+                permissionReq = "VERIFY_PERMISSION|"+userId+"|"+createHash(fileName)+"|"+"w"
+                response = callPeer(peer, permissionReq)
+                # response = peerObj.verifyFilePermission(userId, createHash(fileName))
+                if response:
+                    peer = fileIndexServer.lockAndGetPeerURI(createHash(fileName))
+                    peer = crypto.fernetDecryption(peer, constants.peerCommEncKey)
+                    fileText = ""
+                    print("Please enter file content\n")
+                    print("Note: After finishing enter [end] in new line")
+                    print("-------------------------------------------------------\n")
 
-                while True:
-                    inp = sys.stdin.readline()
-                    if "[end]" in inp:
-                            break
+                    while True:
+                        inp = sys.stdin.readline()
+                        if "[end]" in inp:
+                                break
+                        else:
+                            fileText+=inp
+
+                    print("-------------------------------------------------------\n")
+                    curr_time = str(datetime.datetime.now())
+                    encKey = fileIndexServer.getEncryptionKey(createHash(fileName))
+                    encKey = crypto.fernetDecryption(encKey, constants.peerCommEncKey)
+                    encryptedFileName = crypto.fileNameEncryption(fileName.split("/")[-1].rstrip(".txt"), encKey.split("|||")[1])
+                    encryptedFileName = getEncryptPath(path)+encryptedFileName+".txt"
+                    encryptedFileText = crypto.fernetEncryption(fileText,encKey.split("|||")[0])
+                    clientRequest = "WRITE_FILE"+"|"+userId+"|"+encryptedFileName+"|"+encryptedFileText+"|"+createHash(fileText)+"|"+ curr_time
+                    
+                    if peer.split("|")[0] == "0":
+                        print(peer.split("|")[1])
                     else:
-                        fileText+=inp
-
-                print("-------------------------------------------------------\n")
-                curr_time = str(datetime.datetime.now())
-                encKey = fileIndexServer.getEncryptionKey(createHash(fileName))
-                encKey = crypto.fernetDecryption(encKey, constants.peerCommEncKey)
-                encryptedFileName = crypto.fileNameEncryption(fileName.split("/")[-1].rstrip(".txt"), encKey.split("|||")[1])
-                encryptedFileName = getEncryptPath(path)+encryptedFileName+".txt"
-                encryptedFileText = crypto.fernetEncryption(fileText,encKey.split("|||")[0])
-                clientRequest = "WRITE_FILE"+"|"+userId+"|"+encryptedFileName+"|"+encryptedFileText+"|"+createHash(fileText)+"|"+ curr_time
-                
-                if peer.split("|")[0] == "0":
-                    print(peer.split("|")[1])
-                else:
-                    print(peer)
-                    for i,peer in enumerate(peer.split("|")):
-                        callPeer(peer, clientRequest)
-                indexServReq = createHash(fileName) +"$"+ createHash(fileText) +"$"+ curr_time
-                indexServReq = crypto.fernetEncryption(indexServReq, constants.fileIndexEncKey)
-                fileIndexServer.unlockFileWrite(indexServReq)    
+                        print(peer)
+                        for i,peer in enumerate(peer.split("|")):
+                            callPeer(peer, clientRequest)
+                    indexServReq = createHash(fileName) +"$"+ createHash(fileText) +"$"+ curr_time
+                    indexServReq = crypto.fernetEncryption(indexServReq, constants.fileIndexEncKey)
+                    fileIndexServer.unlockFileWrite(indexServReq)
+    else:
+        print("File Unavailable")
 
 
 def readFile(fileName, userId, path):
-    if verifyFileLock(createHash(fileName)):
-        peer = fileIndexServer.getPeerUriForRead(createHash(fileName))
-        peer = crypto.fernetDecryption(peer, constants.peerCommEncKey)
-        if peer.split("|")[0] == "0":
-            print(peer.split("|")[1])
-        else:
-            permissionReq = "VERIFY_PERMISSION|"+userId+"|"+createHash(fileName)+"|"+"r"
-            response = callPeer(peer, permissionReq)
-            # response = peerObj.verifyFilePermission(userId, createHash(fileName))
-            if response:
-                encKey = fileIndexServer.getEncryptionKey(createHash(fileName))
-                encKey = crypto.fernetDecryption(encKey, constants.peerCommEncKey)
-                encryptedFileName = crypto.fileNameEncryption(fileName.split("/")[-1].rstrip(".txt"), encKey.split("|||")[1])
-                encryptedFileName = getEncryptPath(path)+encryptedFileName+".txt"
-                clientRequest = "READ_FILE"+"|"+userId+"|"+encryptedFileName + "|" + createHash(fileName)
-                callPeerForRead(peer, clientRequest, encKey.split("|||")[0])
+    response = fileIndexServer.checkIfFileIsDeleted(createHash(fileName))
+    response = crypto.fernetDecryption(response, constants.peerCommEncKey)
+    if response.split("|")[1] == "False":
+        if verifyFileLock(createHash(fileName)):
+            peer = fileIndexServer.getPeerUriForRead(createHash(fileName))
+            peer = crypto.fernetDecryption(peer, constants.peerCommEncKey)
+            if peer.split("|")[0] == "0":
+                print(peer.split("|")[1])
+            else:
+                permissionReq = "VERIFY_PERMISSION|"+userId+"|"+createHash(fileName)+"|"+"r"
+                response = callPeer(peer, permissionReq)
+                # response = peerObj.verifyFilePermission(userId, createHash(fileName))
+                if response:
+                    encKey = fileIndexServer.getEncryptionKey(createHash(fileName))
+                    encKey = crypto.fernetDecryption(encKey, constants.peerCommEncKey)
+                    encryptedFileName = crypto.fileNameEncryption(fileName.split("/")[-1].rstrip(".txt"), encKey.split("|||")[1])
+                    encryptedFileName = getEncryptPath(path)+encryptedFileName+".txt"
+                    clientRequest = "READ_FILE"+"|"+userId+"|"+encryptedFileName + "|" + createHash(fileName)
+                    callPeerForRead(peer, clientRequest, encKey.split("|||")[0])
+    else:
+        print("File Unavailable")
 
 
 def deleteFile(fileName, userId):
@@ -269,7 +279,7 @@ def deleteFile(fileName, userId):
             if callPeer(peer.split("|")[0], clientRequest, False):
                 if not len(peer.split("|")) == 1:
                     for i, restPeer in enumerate(peer.split("|")[1:]):
-                        callPeer(peer.split("|")[0], clientRequest, False)
+                        callPeer(restPeer, clientRequest, False)
                 msg = fileIndexServer.performFileDelete(createHash(fileName))
                 msg = crypto.fernetDecryption(msg, constants.peerCommEncKey)
                 print(msg.split("|")[1])
@@ -288,10 +298,12 @@ def restoreFile(fileName, userId):
         if callPeer(peer.split("|")[0], clientRequest, False):
             if not len(peer.split("|")) == 1:
                 for i, restPeer in enumerate(peer.split("|")[1:]):
-                    callPeer(peer.split("|")[0], clientRequest, False)
+                    callPeer(restPeer, clientRequest, False)
             msg = fileIndexServer.performFileRestore(createHash(fileName))
             msg = crypto.fernetDecryption(msg, constants.peerCommEncKey)
             print(msg.split("|")[1])
+        else:
+            print("Access denied")
 
 
 

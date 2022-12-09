@@ -85,10 +85,9 @@ def verifyFileAvailability(fileNameHash):
     return msg
 
 def lockUnlockFileWrite(fileNameHash, flag):
-    print("Inside lock")
     for ind, peerContent in enumerate(index["fileInd"]):
         for j,fil in enumerate(peerContent["index"]):
-            if fileNameHash in fil["fileNameHash"]:
+            if fileNameHash == fil["fileNameHash"]:
                 index["fileInd"][ind]["index"][j]["fileLock"] = flag
 
 def getPeerURI(requestedURI, writeMethodFlag, fileNameHash):
@@ -120,10 +119,7 @@ def getReadPeerURI(fileNameHash):
     for ind,peerContent in enumerate(index["fileInd"]):
         for j,fil in enumerate(peerContent["index"]):
             if fil["fileNameHash"] == fileNameHash:
-                if tempTimeStamp < datetime.datetime.strptime(str(fil["timeStamp"]), '%Y-%m-%d %H:%M:%S.%f'):
-                    uri = peerContent["peer"]+","+peerContent["nsHostIp"]
-                    tempTimeStamp = datetime.datetime.strptime(str(fil["timeStamp"]), '%Y-%m-%d %H:%M:%S.%f')
-                # uri = peerContent["peer"]+","+peerContent["nsHostIp"]
+                uri = peerContent["peer"]+","+peerContent["nsHostIp"]
     
     if uri == "":
         print("In Read peer")
@@ -189,7 +185,7 @@ def checkLock(fileNameHash):
     for ind,peerContent in enumerate(index["fileInd"]):
         for j,fil in enumerate(peerContent["index"]):
             if fil["fileNameHash"] == fileNameHash:
-                if fil["fileLock"] == True:
+                if fil["fileLock"]:
                     return "0|File can't be accessed"
                 else:
                     return "1|File can be accessed"
