@@ -23,7 +23,7 @@ fileIndexServer = Pyro4.Proxy(fileIndexUri)
 
 
 def createHash(fileName):
-    hash = str(hashlib.shake_128("saiteja".encode()).digest(30))
+    hash = hashlib.sha256("saiteja".encode()).hexdigest()
     return hash
 
 def callPeer(peer,clientRequest, printResponse = True):
