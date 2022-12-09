@@ -1,26 +1,3 @@
 {
-    "usersList": [
-        {
-            "id": "sai",
-            "pwd": "-8431602076339693759",
-            "pvt_key": "-----BEGIN RSA PUBLIC KEY-----\nMEgCQQCXgZpWxgwm/ZEG9DD6Xa8Kx4dV1O1UOaS3YoUnaiUApdpbnVu++R2S3P0I\nJH9LLD/TT2oT1eal+O1MkQlWUySPAgMBAAE=\n-----END RSA PUBLIC KEY-----\n",
-            "pub_key": "-----BEGIN RSA PRIVATE KEY-----\nMIIBPAIBAAJBAJeBmlbGDCb9kQb0MPpdrwrHh1XU7VQ5pLdihSdqJQCl2ludW775\nHZLc/Qgkf0ssP9NPahPV5qX47UyRCVZTJI8CAwEAAQJAEodgJ8Ka093o8a/FmakB\nclEKpR2gVM+j7GWZIUPi4XyxlsbHoOZobtVa9ED8CpgNfnxTVZWJRsCFCrow5MmR\noQIjAL0TgDyWFRD2Es9QUo2q/L1FrLw4gx/Vq0vQtR/fD0DrSNECHwDNIdTBCwsq\nfSLNDk5F4YzDOY2a4+xB+EEpUTeI718CIjGbqzq6Of7AQYEpVu+anENgw4iC30x7\n+DylHtCk6tCiqvECHgfQAgpYIVS871Zf9Rs0O+gziPEdPSJGEjVAopzUgQIjAJaU\nbHgteJDH+n2KcSKnesi+9Ksq+AAdplWU89KaaKZ1J8w=\n-----END RSA PRIVATE KEY-----\n",
-            "fernetKey": "b'R-REW6TWxPNOrBSVQefjaLhLT7rjU_hjwwoCaEOmunU='"
-        },
-        {
-            "id": "meenakshi",
-            "pwd": "-720260156515788369",
-            "fernetKey": "UEWCppAm-Lu-tFeZVHSx27BT7aGZmsK9zQSA9O8KJ_A="
-        },
-        {
-            "id": "sandeep876",
-            "pwd": "-8431602076339693759",
-            "fernetKey": "5q5UHDpLSwLFtyas8mpGJIUV-1_hWWHH0sEgbSgt11w="
-        },
-        {
-            "id": "prasanna",
-            "pwd": "-720260156515788369",
-            "fernetKey": "8j1avqRBwkBuU6D6l4cHko9pVBQU3CR02j4z0h1CtFQ="
-        }
-    ]
+    "usersList": []
 }
