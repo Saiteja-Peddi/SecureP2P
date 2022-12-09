@@ -177,6 +177,7 @@ def main():
             if "/" == cwd:
                 print("You are in root folder")
             else:
+                print(cwd)
                 cwdList = cwd.strip("/").split("/")
                 cwd = "/" + "/".join(cwdList[:-1])
                 
