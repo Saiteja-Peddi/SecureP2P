@@ -33,7 +33,7 @@ def updateFileIndex(fileNameHash, fileContentHash, timeStamp):
                 index["fileInd"][ind]["index"][j]["timeStamp"] = timeStamp,
                 index["fileInd"][ind]["index"][j]["fileContentHash"] = fileContentHash
     
-
+# Writes to file index about peer information initially while every peer connects to network
 def writeToFileIndex(jsonObject):
     for ind, peerContent in enumerate(index["fileInd"]):
         if peerContent["nsHostIp"] == jsonObject["nsHostIp"]:
@@ -53,6 +53,7 @@ def writeToFileIndex(jsonObject):
 def emptyFileIndex():
     index["fileInd"] = []
 
+# Adds a record about a file containing in a peer when a file is created
 def addToFileIndex(fileObj):
     
     indexObj = {
@@ -84,12 +85,14 @@ def verifyFileAvailability(fileNameHash):
                         msg = "0|File already exists"
     return msg
 
+# Lock and Unlock mechanism while user is writing
 def lockUnlockFileWrite(fileNameHash, flag):
     for ind, peerContent in enumerate(index["fileInd"]):
         for j,fil in enumerate(peerContent["index"]):
             if fileNameHash == fil["fileNameHash"]:
                 index["fileInd"][ind]["index"][j]["fileLock"] = flag
 
+# Sends connection details to the peer about every peer which contains file 
 def getPeerURI(requestedURI, writeMethodFlag, fileNameHash):
     fileCount = 9999
     uri = ""
@@ -110,7 +113,7 @@ def getPeerURI(requestedURI, writeMethodFlag, fileNameHash):
     else:
         return uri
     
-
+# Sends connection details of a peer to read the file
 def getReadPeerURI(fileNameHash):
     uri = ""
     tempTimeStamp = datetime.datetime.now()
@@ -122,11 +125,11 @@ def getReadPeerURI(fileNameHash):
                 uri = peerContent["peer"]+","+peerContent["nsHostIp"]
     
     if uri == "":
-        print("In Read peer")
         return "0|Unable to find a peer"
     else:
         return uri
 
+# Sends connection details of a peer to delete the file
 def getDeletePeersURI(fileNameHash):
     uri =""
     for ind,peerContent in enumerate(index["fileInd"]):
@@ -141,6 +144,7 @@ def getDeletePeersURI(fileNameHash):
     else:
         return uri
 
+# Sends connection details of a all peers 
 def getAllAvailablePeersUri():
     peerList = ""
     for ind,peerContent in enumerate(index["fileInd"]):
@@ -148,6 +152,7 @@ def getAllAvailablePeersUri():
         if not ind == len(index["fileInd"])-1:
             peerList += "|"
     return peerList
+
 
 def updateDeleteFlag(fileNameHash, flag):
     for ind,peerContent in enumerate(index["fileInd"]):
@@ -177,8 +182,10 @@ def storeKey(fileNameHash, key):
     loadToKeysFile()
     return "1|Key stored successfully"
 
+
 def getKey(fileNameHash):
     return keys[fileNameHash]
+
 
 def checkLock(fileNameHash):
     msg = "0|Invalid Filename"
@@ -191,7 +198,7 @@ def checkLock(fileNameHash):
                     return "1|File can be accessed"
     return msg
 
-
+# Updates directory name metadata when renamed
 def updateFileNameHash(oldFileNameHash, newFileNameHash, curr_time):
     for ind,peerContent in enumerate(index["fileInd"]):
         for j,fil in enumerate(peerContent["index"]):
@@ -202,6 +209,7 @@ def updateFileNameHash(oldFileNameHash, newFileNameHash, curr_time):
     del keys[oldFileNameHash]
     loadToKeysFile()
 
+# Removes all deleted files data
 def removeDeletedFilesData():
     for ind,peerContent in enumerate(index["fileInd"]):
         for j,fil in enumerate(peerContent["index"]):
@@ -217,6 +225,7 @@ def removeDeletedFilesData():
                 }
                 loadToKeysFile()
     return "1|Permanently removed sofar deleted files"
+
 
 @Pyro4.behavior(instance_mode="percall")
 class FileIndex(object):
@@ -295,7 +304,6 @@ class FileIndex(object):
     @Pyro4.expose
     def storeEncryptionKey(self, request):
         request = crypto.fernetDecryption(request, constants.fileIndexEncKey)
-        print(request)
         fileNameHash, key = request.split(" ")
         response = storeKey(fileNameHash, key)
         return crypto.fernetEncryption(response, constants.peerCommEncKey)

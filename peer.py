@@ -13,7 +13,7 @@ schedulerFlag = False
 
 
 
-
+# Loads all file related information in this peer to file index server
 def loadFileIndexServer():
     nameserver=Pyro4.locateNS(host = constants.fileIndexHost)
     fileIndexUri = nameserver.lookup("example.fileIndex")
@@ -53,6 +53,7 @@ def loadFileIndexServer():
     response = crypto.fernetDecryption(response, constants.peerCommEncKey)
     print(response.split("|")[1])
 
+# Creates a record in file index if new file created
 def addToFileIndex(file):
     nameserver=Pyro4.locateNS(host = constants.fileIndexHost)
     fileIndexUri = nameserver.lookup("example.fileIndex")
@@ -71,7 +72,7 @@ def addToFileIndex(file):
     print(response.split("|")[1])
 
 
-
+# Stores file metadata contains permissions 
 def writeToFilePermJson(userId, fileName, permissions, userList, fileNameHash, fileContentHash, timeStamp):
     with open('file_perm.json','r+') as file:
         file_data = json.load(file)
@@ -93,6 +94,7 @@ def writeToFilePermJson(userId, fileName, permissions, userList, fileNameHash, f
         json.dump(file_data, file, indent = 4)
         file.close()
 
+
 def updateFilePermJson(fileName, fileContentHash, timeStamp):
     with open('file_perm.json','r+') as file:
         file_data = json.load(file)
@@ -107,10 +109,8 @@ def updateFilePermJson(fileName, fileContentHash, timeStamp):
         file.close()
 
 
-
+# Verifies if specified user has read or write or delete permissions
 def verifyUserPermissions(userId, fileName, checkWrite, checkRead, checkDelete):
-    print(fileName)
-    print(userId)
     with open('file_perm.json','r+') as file:
         file_data = json.load(file)
         for ind,fil in enumerate(file_data["fileList"]):
@@ -145,6 +145,7 @@ def verifyPermissionForKey(userId, fileNameHash, reqPerm):
                 else:
                     return "0|You cannot access key"
 
+
 def createFile(userId, fileName, fileNameHash, fileContent, permissions, userList, timeStamp):
     if os.path.isfile(fileName):
         return "0|File already exists"
@@ -175,7 +176,6 @@ def checkFileAvailability(fileNameHash):
        
 
 def createDirectory(userId, fileName, fileNameHash, timeStamp):
-    print(fileName)
     if os.path.isfile(fileName):
         return "0|File already exists"
     else:
@@ -282,7 +282,6 @@ def permanentDelete():
         for ind,fil in enumerate(file_data["fileList"]):
             if fil["fileDelete"] == 1:
                 if os.path.isfile(fil["fileName"]):
-                    print(fil["fileName"])
                     os.remove(fil["fileName"])
                     file_data["fileList"][ind]["fileName"] = ""
                     file_data["fileList"][ind]["fileNameHash"] = ""
@@ -302,7 +301,15 @@ class Peer(object):
         pass
     @Pyro4.expose
     def fileRequestHandler(self, cliMsg):
+        print("Encrypted:")
+        print(cliMsg)
+
+        # Decrypts the encrypted message
         cliMsg = crypto.fernetDecryption(cliMsg, constants.peerCommEncKey)
+
+        print("Decrypted")
+        print(cliMsg)
+
         if "CREATE_FILE" in cliMsg:
             _,userId, fileName, fileNameHash, fileContent, permissions, userList, timeStamp = cliMsg.split("|")
             message = createFile(userId.strip("\n"), fileName.strip("\n"), fileNameHash.strip("\n"), fileContent.strip("\n"), permissions.strip("\n"), userList, timeStamp)
@@ -348,9 +355,13 @@ class Peer(object):
         else:
             message = "0|Invalid option selected"
 
+        
         message = crypto.fernetEncryption(message, constants.peerCommEncKey)
+        print("Encrypted sent msg:")
+        print(message)
         return message
 
+    # Verifies if the given user has permission to access the encryption key of respective file
     @Pyro4.expose
     def verifyFilePermission(self, userId, fileNameHash):
         return verifyPermissionForKey(userId, fileNameHash)
