@@ -47,9 +47,6 @@ def writeToFileIndex(jsonObject):
         }
     
     index["fileInd"].append(fileIndex)
-    print("----------------------")
-    print(index)
-    print("----------------------")
     return "1|Successfully updated file index"
     
 
@@ -88,6 +85,7 @@ def verifyFileAvailability(fileNameHash):
     return msg
 
 def lockUnlockFileWrite(fileNameHash, flag):
+    print("Inside lock")
     for ind, peerContent in enumerate(index["fileInd"]):
         for j,fil in enumerate(peerContent["index"]):
             if fileNameHash in fil["fileNameHash"]:
@@ -128,6 +126,7 @@ def getReadPeerURI(fileNameHash):
                 # uri = peerContent["peer"]+","+peerContent["nsHostIp"]
     
     if uri == "":
+        print("In Read peer")
         return "0|Unable to find a peer"
     else:
         return uri
@@ -266,6 +265,7 @@ class FileIndex(object):
 
     @Pyro4.expose
     def unlockFileWrite(self, request):
+        print("Unlock called in index")
         request = crypto.fernetDecryption(request, constants.fileIndexEncKey)
         fileNameHash, fileContentHash, timeStamp = request.split("$")
         updateFileIndex(fileNameHash, fileContentHash, timeStamp)
