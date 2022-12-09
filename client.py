@@ -15,6 +15,7 @@ directoryNamePattern = re.compile("^([A-Za-z0-9])+$")
 sys.excepthook = Pyro4.util.excepthook
 
 
+# Calls authentication server
 def callAuthServer(authServer, clientRequest):
     clientRequest = crypto.fernetEncryption(clientRequest, constants.authServerEncKey)
     serverResponse = authServer.authRequestHandler(clientRequest)
@@ -26,6 +27,7 @@ def callAuthServer(authServer, clientRequest):
         return False
 
 
+#Create user functionality
 def createUser(authServer, userId):
     while 1:
         password = getpass.getpass("Enter your password:\n")
@@ -35,16 +37,12 @@ def createUser(authServer, userId):
             break
         else:
             print("Passwords didn't match!")
-
-    #If random hash is generating run below command
-    #Mac: export PYTHONHASHSEED=0
-    #Windows: $env:PYTHONHASHSEED=0
     hashedPassword = hashlib.sha256(password.encode()).hexdigest()
     clientRequest = "CREATE_USER|"+userId+"|"+str(hashedPassword)
 
     return callAuthServer(authServer, clientRequest)
 
-
+# Sign in functionality
 def authenticateUser(authServer, userId):
     password = getpass.getpass("Enter your password:\n")
     hashedPassword = hashlib.sha256(password.encode()).hexdigest()
@@ -60,6 +58,7 @@ def provideLoginOptions():
     """
     print(loginMsg)
 
+# Prints the menu where peer can execute the commands as presented below
 def provideFileOperationsMenu():
     menu ="""
     Command Menu:
@@ -79,14 +78,9 @@ def provideFileOperationsMenu():
     11. List current working directory files: lscurr
     12. Exit from application: exit
     """
-    #Implementation
-    #1. For directory at clientside we maintain current working path all the time till the client logs out of the system.
-    #2. The list root files will take the user to the top level of the file system so that user can start from the begining.
     print(menu)
 
-#Checks user entered command
-
-
+#Checks command syntax
 def checkCommandInput(cliCommand,create):
     if create:
         if len(cliCommand.split("|")) != 3:
@@ -105,6 +99,7 @@ def main():
     authIndexUri = nameserver.lookup("example.authServer")
     authServer = Pyro4.Proxy(authIndexUri)
 
+    #While loop for complete login functionality
     while 1:
         provideLoginOptions()
         opt = int(input())
@@ -126,6 +121,7 @@ def main():
         else:
             print("Please enter valid input")
 
+    #While loop for complete file operations
     while 1:
         provideFileOperationsMenu()
         cliCommand = sys.stdin.readline()
@@ -147,9 +143,6 @@ def main():
         elif "rmfile" in cliCommand and checkCommandInput(cliCommand,False):
             _,fileName = cliCommand.split("|")
             fileCli.deleteFile(dbDir+cwd+fileName.strip("\n"), userId.strip("\n"))
-
-            # Below link contains how to delete an element from a json file
-            # https://stackoverflow.com/questions/71764921/how-to-delete-an-element-in-a-json-file-python
 
         elif "restore" in cliCommand and checkCommandInput(cliCommand,False):
             _,fileName = cliCommand.split("|")
@@ -177,7 +170,6 @@ def main():
             if "/" == cwd:
                 print("You are in root folder")
             else:
-                print(cwd)
                 cwdList = cwd.strip("/").split("/")
                 cwd = "/" + "/".join(cwdList[:-1])
                 
@@ -195,6 +187,11 @@ def main():
             cwd = "/"
             print("Current working directory updated to root folder")
 
+        elif "benchmark" in cliCommand:
+            for i in range(1000, 10000):
+                fileName = "bench"+str(i)+".txt"
+                permissions = "p"
+                fileCli.createFileOrDirectory(dbDir+cwd+fileName.strip("\n"), permissions.strip("\n"), userId.strip("\n"), dbDir+cwd, False)
 
         elif "exit" in cliCommand:
             sys.exit()

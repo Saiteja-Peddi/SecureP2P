@@ -1,6 +1,5 @@
 from socket import *
 import json
-import rsa
 import Pyro4
 import sys
 sys.path.append("..")
@@ -74,7 +73,6 @@ class AuthServer(object):
         pass
 
     def authRequestHandler(self, cliMsg):
-        print(cliMsg)
         cliMsg = crypto.fernetDecryption(cliMsg,constants.authServerEncKey)
         if "CREATE_USER" in cliMsg:
             userId,hashedPassword = cliMsg.split("|")[1:]

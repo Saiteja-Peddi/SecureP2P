@@ -1,8 +1,6 @@
 from cryptography.fernet import Fernet
-import rsa
-import constants
 
-
+# Encrypts the file data using fernet encryption method
 def fernetEncryption(encryptingText, key):
     # key = key.lstrip("\"")
     # key = key.rstrip("\"")
@@ -13,11 +11,13 @@ def fernetEncryption(encryptingText, key):
     response = response.rstrip("'")
     return str(response)
 
+# Decrypts the file data using fernet encryption method
 def fernetDecryption(decryptingText, key):
     f = Fernet(key)
     response = f.decrypt(bytes(decryptingText, encoding='utf8'))
     return response.decode()
 
+# Encrypts the file name
 def fileNameEncryption(data, shift):
     
     shift = int(shift)
@@ -37,7 +37,7 @@ def fileNameEncryption(data, shift):
  
     return output
 
-
+# Decrypts the file name
 def fileNameDecryption(data, shift):
     shift = int(shift)
     decShift = 26 - shift
@@ -54,12 +54,3 @@ def fileNameDecryption(data, shift):
 
     reversed = output[::-1]
     return reversed
-
-
-def rsaEncryption(data, pubKey):
-    encryptedData = rsa.encrypt(data, rsa.PublicKey.load_pkcs1(pubKey))
-    return encryptedData
-
-def rsaDecryption(data, pvtKey):
-    decryptedData = rsa.decrypt(data, rsa.PrivateKey.load_pkcs1(pvtKey))
-    return decryptedData

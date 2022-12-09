@@ -1,3 +1,24 @@
 {
-    "usersList": []
+    "usersList": [
+        {
+            "id": "meenakshi",
+            "pwd": "a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3",
+            "fernetKey": "P1nOxRyl67983OBamR6NsKR3QnUyw0QbMiY0E4fs20Q="
+        },
+        {
+            "id": "sai",
+            "pwd": "a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3",
+            "fernetKey": "noJPRbjaYAPfpcbCUIUiZLxh2lJUVgqqZmhyA2HqOps="
+        },
+        {
+            "id": "sandeep",
+            "pwd": "a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3",
+            "fernetKey": "oDU8d5S7t_yVS2bS_poqC5Jm7_JnscPzrBu4IZ51PbI="
+        },
+        {
+            "id": "prasanna",
+            "pwd": "a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3",
+            "fernetKey": "YBdiFDl3mBuJZv7dX0PG1q2QgsAHW0Ur4m0rI1ZnEhU="
+        }
+    ]
 }

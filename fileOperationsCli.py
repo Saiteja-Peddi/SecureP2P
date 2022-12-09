@@ -9,12 +9,11 @@ from cryptography.fernet import Fernet
 import crypto
 import random
 import hashlib
-
+import time
 fileNamePattern = re.compile("^([A-Za-z0-9])+(.txt)?$")
 directoryNamePattern = re.compile("^([A-Za-z0-9])+$")
-# fileIndexServer = Pyro4.Proxy("PYRONAME:example.fileIndex")
-# localPeer = Pyro4.Proxy("PYRONAME:"+constants.peerName)
 
+# Gets link to the file index which is hosted in primary peer server
 nameserver=Pyro4.locateNS(host = constants.fileIndexHost)
 fileIndexUri = nameserver.lookup("example.fileIndex")
 fileIndexServer = Pyro4.Proxy(fileIndexUri)
@@ -26,6 +25,7 @@ def createHash(fileName):
     hash = hashlib.sha256(fileName.encode()).hexdigest()
     return hash
 
+# Calls peers
 def callPeer(peer,clientRequest, printResponse = True):
     clientRequest = crypto.fernetEncryption(clientRequest, constants.peerCommEncKey)
     peerName,nsIP = peer.split(",")
@@ -45,6 +45,7 @@ def callPeer(peer,clientRequest, printResponse = True):
     else:
         return False
 
+# Calls peers
 def callPeerForList(peer, clientRequest):
     clientRequest = crypto.fernetEncryption(clientRequest, constants.peerCommEncKey)
     peerName,nsIP = peer.split(",")
@@ -60,6 +61,7 @@ def callPeerForList(peer, clientRequest):
         print(serverResponse.split("|")[1])
         return ""
 
+# Calls peers
 def callPeerForRead(peer, clientRequest, encKey):
     print(encKey)
     clientRequest = crypto.fernetEncryption(clientRequest, constants.peerCommEncKey)
@@ -69,7 +71,14 @@ def callPeerForRead(peer, clientRequest, encKey):
     peerUri = nameserver.lookup(peerName)
     peerObj = Pyro4.Proxy(peerUri)
     serverResponse = peerObj.fileRequestHandler(clientRequest)
+
+    print("Encrypted response from server")
+    print(serverResponse)
+
     serverResponse = crypto.fernetDecryption(serverResponse, constants.peerCommEncKey)
+    print("Decrypted server response containing encrypted file data")
+    print(serverResponse)
+
     if serverResponse.split("|")[0] == "1":
         print("\n----------------------------------------")
         print("File Content:\n")
@@ -80,6 +89,7 @@ def callPeerForRead(peer, clientRequest, encKey):
         print(serverResponse.split("|")[1])
         return False
 
+# Verifies if given file already exists in the server or not
 def verifyFileAvailability(fileNameHash, pathChange = False):
     indexServerResponse = fileIndexServer.checkFileAvailability(fileNameHash)
     indexServerResponse = crypto.fernetDecryption(indexServerResponse, constants.peerCommEncKey)
@@ -90,7 +100,7 @@ def verifyFileAvailability(fileNameHash, pathChange = False):
     else:
         return False
 
-
+# Verifies if given file already exists in the server or not for create functionality
 def verifyFileAvailabilityForCreate(fileName):
     peer = fileIndexServer.getAllPeers()
     peer = crypto.fernetDecryption(peer, constants.peerCommEncKey)
@@ -106,15 +116,14 @@ def verifyFileAvailabilityForCreate(fileName):
             print(response)
             if response:
                 fileAvailableCount = fileAvailableCount + 1
-    print(len(peer.split("|")))
-    print(fileAvailableCount)
+    
     if fileAvailableCount == len(peer.split("|")):
         return True
     else:
         print("File already exist")
         
 
-
+# Checks if file is locked by write
 def verifyFileLock(fileNameHash):
     response = fileIndexServer.checkFileLock(fileNameHash)
     response = crypto.fernetDecryption(response, constants.peerCommEncKey)
@@ -124,7 +133,7 @@ def verifyFileLock(fileNameHash):
     else:
         return True
 
-
+#Functionality related to file or directory creation
 def createFileOrDirectory(fileName, permissions, userId, path, directoryFlag):
     i = 0
     userList = ""
@@ -153,6 +162,7 @@ def createFileOrDirectory(fileName, permissions, userId, path, directoryFlag):
                 i += 1
             print("-------------------------------------------------------\n")
         encKey = str(Fernet.generate_key().decode())
+        time.sleep(0.1)
         encKey = encKey.lstrip("b'")
         encKey = encKey.rstrip("'")
         encKey = encKey + "|||" + str(random.randrange(1,26,4))
@@ -164,7 +174,6 @@ def createFileOrDirectory(fileName, permissions, userId, path, directoryFlag):
             encryptedFileName = getEncryptPath(path)+encryptedFileName
         else:
             encryptedFileName = getEncryptPath(path)+encryptedFileName+".txt"
-        print(fileName)
         fileText = "Please enter file content"
         fileText = crypto.fernetEncryption(fileText, encKey.split("|||")[0])
         clientRequest = "CREATE_FILE"+"|"+userId+"|"+encryptedFileName+"|"+createHash(fileName)+"|"+ fileText +"|"+permissions+"|"+userList.strip("\n")+"|"+str(datetime.datetime.now())
@@ -191,7 +200,7 @@ def createFileOrDirectory(fileName, permissions, userId, path, directoryFlag):
             callPeer(constants.peerName+","+constants.pyroHost, clientRequest)
 
 
-
+# Functionality to write into a file
 def writeFile(fileName, userId, path):
     response = fileIndexServer.checkIfFileIsDeleted(createHash(fileName))
     response = crypto.fernetDecryption(response, constants.peerCommEncKey)
@@ -242,6 +251,7 @@ def writeFile(fileName, userId, path):
         print("File Unavailable")
 
 
+# Functionality to read a file
 def readFile(fileName, userId, path):
     response = fileIndexServer.checkIfFileIsDeleted(createHash(fileName))
     response = crypto.fernetDecryption(response, constants.peerCommEncKey)
@@ -265,7 +275,7 @@ def readFile(fileName, userId, path):
     else:
         print("File Unavailable")
 
-
+# Functionality to delete a file
 def deleteFile(fileName, userId):
     if verifyFileLock(createHash(fileName)):
         clientRequest = "DELETE_FILE"+"|"+userId+"|"+createHash(fileName)
@@ -285,7 +295,7 @@ def deleteFile(fileName, userId):
                 print(msg.split("|")[1])
 
  
-
+# Functionality to restore a file
 def restoreFile(fileName, userId):
     clientRequest = "RESTORE_FILE"+"|"+userId+"|"+createHash(fileName)
     
@@ -306,7 +316,7 @@ def restoreFile(fileName, userId):
             print("Access denied")
 
 
-
+# Functionality to navigate between the files
 def goInsideDirectory(userId, directoryname):
     if verifyFileLock(createHash(directoryname)):
         permissionReq = "VERIFY_PERMISSION|"+userId+"|"+createHash(directoryname)+"|"+"r"
@@ -321,6 +331,7 @@ def goInsideDirectory(userId, directoryname):
             else:
                 return False
 
+# Functionality to directory name updation
 def updateDirectoryName(userId, fileName, path):
     if verifyFileLock(createHash(fileName)):
         permissionReq = "VERIFY_PERMISSION|"+userId+"|"+createHash(fileName)+"|"+"r"
@@ -352,19 +363,17 @@ def updateDirectoryName(userId, fileName, path):
                     print(peer.split("|")[1])
                 else:
                     for i,peer in enumerate(peer.split("|")):
-                        print(peer)
                         callPeer(peer, clientRequest)
                     indexServReq = createHash(fileName) +"$"+ createHash(path+newFileName) +"$"+ curr_time
                     indexServReq = crypto.fernetEncryption(indexServReq, constants.fileIndexEncKey)
                     fileIndexServer.unlockFileRename(indexServReq)
 
-
+# Creates a path that resembles the db path
 def getEncryptPath(path):
     encPath = ""
     tempPath = ""
     for i, file in enumerate(path.strip("/").split("/")):
         tempPath = tempPath +file+ "/"
-        print(tempPath)
         if file == "." or file == "db":
             encPath = encPath + file+ "/"
         else:
@@ -375,6 +384,7 @@ def getEncryptPath(path):
             encPath = encPath + encFileName + "/"
     return encPath
 
+# Functionality for listing current directory files 
 def listFilesInCurrentPath(userId,path):
     peerList = fileIndexServer.getAllPeers()
     peerList = crypto.fernetDecryption(peerList, constants.peerCommEncKey)
