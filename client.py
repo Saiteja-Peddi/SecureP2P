@@ -8,7 +8,7 @@ import Pyro4.util
 import constants
 import re
 import crypto
-
+import hashlib
 dbDir = "./db"
 fileNamePattern = re.compile("^([A-Za-z0-9])+(.txt)$")
 directoryNamePattern = re.compile("^([A-Za-z0-9])+$")
@@ -39,7 +39,7 @@ def createUser(authServer, userId):
     #If random hash is generating run below command
     #Mac: export PYTHONHASHSEED=0
     #Windows: $env:PYTHONHASHSEED=0
-    hashedPassword = hash(password.encode())
+    hashedPassword = hashlib.sha256(password.encode()).hexdigest()
     clientRequest = "CREATE_USER|"+userId+"|"+str(hashedPassword)
 
     return callAuthServer(authServer, clientRequest)
@@ -47,7 +47,7 @@ def createUser(authServer, userId):
 
 def authenticateUser(authServer, userId):
     password = getpass.getpass("Enter your password:\n")
-    hashedPassword = hash(password.encode())
+    hashedPassword = hashlib.sha256(password.encode()).hexdigest()
     clientRequest = "LOGIN_USER|"+userId+"|"+str(hashedPassword)
     return callAuthServer(authServer, clientRequest)
 
